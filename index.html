@@ -77,6 +77,7 @@ th{font-size:11px;text-transform:uppercase;color:var(--mut);white-space:nowrap}
 .kpi{background:#fff;border-radius:12px;padding:14px}.kpi .v{font-size:22px;font-weight:800;margin-top:4px}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:900px){.adm{flex-direction:column}.side{width:100%;display:flex;overflow-x:auto;padding:8px}.side .logo{display:none}.side a{white-space:nowrap;margin:0 2px}.cols{grid-template-columns:1fr}}
+.pcard{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.pcard .thumb{width:64px;height:64px;flex-shrink:0}
 .empty{text-align:center;color:var(--mut);padding:30px}
 .tl{display:flex;gap:4px;margin:8px 0}.tl i{flex:1;height:5px;border-radius:3px;background:#e5e7eb}.tl i.on{background:var(--ok)}
 .login{max-width:360px;margin:12vh auto;background:#fff;padding:24px;border-radius:14px}
@@ -127,7 +128,7 @@ function seed(){
     it.forEach(x=>{products.find(p=>p.id===x.id).sold+=x.qty});
     return {id:'ORD-'+(1000+n),userId:u.id,name:u.name,phone:u.phone,email:u.email,address:'12 Sample Street',state,city:state,items:it,subtotal:sub,shipping:ship,discount:0,coupon:'',vat:0,total:sub+ship,payment:pay,payStatus:status==='Delivered'||status==='Shipped'?'Paid':'Pending',status,date:day(ago)};
   };
-  const orders=[mk(1,users[0],[[0,1]],6,'Delivered','card','Lagos'),mk(2,users[1],[[4,1],[11,1]],5,'Delivered','transfer','Abuja (FCT)'),mk(3,users[0],[[6,1]],3,'Shipped','card','Lagos'),mk(4,users[1],[[2,2]],2,'Processing','cod','Lagos'),mk(5,users[0],[[10,1]],1,'Pending','transfer','Rivers'),mk(6,users[1],[[12,2],[3,1]],0,'Pending','card','Lagos')];
+  const orders=[mk(1,users[0],[[0,1]],6,'Delivered','card','Lagos'),mk(2,users[1],[[4,1],[11,1]],5,'Delivered','transfer','Abuja (FCT)'),mk(3,users[0],[[6,1]],3,'Shipped','card','Lagos'),mk(4,users[1],[[2,2]],2,'Processing','transfer','Lagos'),mk(5,users[0],[[10,1]],1,'Pending','transfer','Rivers'),mk(6,users[1],[[12,2],[3,1]],0,'Pending','card','Lagos')];
   return {
     products,categories:cats,orders,users,
     coupons:[{id:'k1',code:'WELCOME10',type:'percent',value:10,min:50000,expires:'2027-12-31',active:true,used:0}],
@@ -142,7 +143,7 @@ function seed(){
       {id:'s1',name:'Lagos',states:'Lagos',fee:5000,eta:'1-2 days'},
       {id:'s2',name:'Abuja (FCT)',states:'Abuja (FCT)',fee:8000,eta:'2-3 days'},
       {id:'s3',name:'Other states',states:'*',fee:15000,eta:'3-7 days'}],
-    settings:{name:'ELECTRO',tagline:'Electronics & Machines Marketplace',phone:'+234 800 000 0000',whatsapp:'2348000000000',email:'support@electro.ng',address:'Lagos, Nigeria',vat:7.5,lowStock:5,adminEmail:'admin@electro.ng',adminPass:'admin123',card:true,transfer:true,cod:true,bank:'Bank: Your Bank\nAccount: 0000000000\nName: ELECTRO Ltd',autoApprove:true},
+    settings:{name:'ELECTRO',tagline:'Electronics & Machines Marketplace',phone:'+234 800 000 0000',whatsapp:'2348000000000',email:'support@electro.ng',address:'Lagos, Nigeria',vat:7.5,lowStock:5,adminEmail:'admin@electro.ng',adminPass:'admin123',card:true,transfer:true,bank:'Bank: Your Bank\nAccount: 0000000000\nName: ELECTRO Ltd',autoApprove:true},
     cart:[],wish:[],session:{user:null,admin:false}
   };
 }
@@ -218,7 +219,7 @@ async function boot(){
 async function payWithPaystack(o){
   try{if(!window.PaystackPop)await loadScript('https://js.paystack.co/v1/inline.js')}catch(e){return toast('Could not load Paystack')}
   PaystackPop.setup({key:PAYSTACK_KEY,email:o.email,amount:Math.round(o.total*100),currency:'NGN',ref:o.id+'-'+Date.now(),metadata:{orderId:o.id},
-    callback:function(r){if(!CLOUD){o.payStatus='Paid';save()}toast('Payment received. Thank you!');if(CLOUD&&S.view==='orders')setTimeout(()=>pullOrders().then(renderStore),4000)},
+    callback:function(r){if(!CLOUD){o.payStatus='Paid';save()}toast('Payment received. Thank you!');detailsForm(o.id);if(CLOUD&&S.view==='orders')setTimeout(()=>pullOrders().then(renderStore),4000)},
     onClose:function(){toast('Payment not completed. You can pay later from My orders.')}}).openIframe();
 }
 function toast(m){const t=$('#toast'),d=document.createElement('div');d.textContent=m;t.appendChild(d);setTimeout(()=>d.remove(),2600)}
@@ -336,7 +337,7 @@ function renderStore(){
       <div class="mut">${dstr(o.date)} · ${o.items.length} item(s) · ${fmt(o.total)} · ${stateTag(o.payStatus)}</div>
       <div class="tl">${STATUSES.map((s,i)=>`<i class="${i<=idx?'on':''}"></i>`).join('')}</div>
       <div class="mut">${o.items.map(i=>esc(i.name)+' ×'+i.qty).join(', ')}</div>
-      ${o.payment==='card'&&PAYSTACK_KEY&&o.payStatus==='Pending'&&o.status!=='Cancelled'?`<button class="btn sm green" style="margin-top:8px;margin-right:6px" data-a="paynow" data-id="${o.id}">Pay now</button>`:''}${o.status==='Pending'?`<button class="btn sm red" style="margin-top:8px" data-a="cancelmine" data-id="${o.id}">Cancel order</button>`:''}</div>`}).join(''):'<div class="empty">No orders yet</div>'}</div>`;
+      ${o.quotePending&&o.status!=='Cancelled'?'<div style="margin-top:8px"><span class="tag warn">Delivery price being confirmed</span></div>':''}${!o.quotePending&&o.payStatus==='Pending'&&o.status!=='Cancelled'?`<div style="margin-top:8px"><div class="mut">Delivery ${fmt(o.shipping)} · <b>Total to pay ${fmt(o.total)}</b></div><button class="btn sm green" style="margin-right:6px" data-a="paynow" data-id="${o.id}">Pay now</button></div>`:''}${o.detailsPending&&o.status!=='Cancelled'?`<button class="btn sm" style="margin-top:8px;margin-right:6px" data-a="adddetails" data-id="${o.id}">Add delivery address</button>`:''}${o.status==='Pending'?`<button class="btn sm red" style="margin-top:8px" data-a="cancelmine" data-id="${o.id}">Cancel order</button>`:''}</div>`}).join(''):'<div class="empty">No orders yet</div>'}</div>`;
   }
   const s=DB.settings;
   $('#app').innerHTML=header()+`<div class="wrap">${main}</div>
@@ -392,35 +393,44 @@ function checkout(){
   closeDrawer();
   if(!DB.session.user){toast('Please login or register first');return authModal('login')}
   const u=DB.users.find(x=>x.id===DB.session.user),sub=cartSub(),cd=couponDiscount(COUPON,sub),s=DB.settings;
-  modal(`<h3>Checkout</h3><form data-f="order"><div class="two"><div><label>Full name</label><input name="name" required value="${esc(u.name)}"></div><div><label>Phone</label><input name="phone" required value="${esc(u.phone||'')}"></div></div>
-  <label>Address</label><input name="address" required><div class="two"><div><label>State</label><select name="state" data-i="chstate">${STATES.map(x=>`<option ${x==='Lagos'?'selected':''}>${x}</option>`).join('')}</select></div><div><label>City / Area</label><input name="city" required></div></div>
-  <label>Payment method</label><select name="payment">${s.card?'<option value="card">Card (Paystack / Flutterwave)</option>':''}${s.transfer?'<option value="transfer">Bank transfer</option>':''}${s.cod?'<option value="cod">Pay on delivery</option>':''}</select>
+  modal(`<h3>Checkout</h3><form data-f="order"><div class="two"><div><label>Full name</label><input name="name" required value="${esc(u.name)}"></div><div><label>Phone</label><input name="phone" required value="${esc(u.phone||'')}"></div></div><label>Delivery state</label><select name="state" data-i="chstate">${STATES.map(x=>`<option ${x==='Lagos'?'selected':''}>${x}</option>`).join('')}</select><label>How will you pay?</label><select name="payment">${s.card?'<option value="card">Card</option>':''}${s.transfer?'<option value="transfer">Bank transfer</option>':''}</select>
   <div style="background:var(--bg);border-radius:8px;padding:10px;margin-top:12px" id="sum">${sumHtml('Lagos',sub,cd.d)}</div>
-  <button class="btn full" style="margin-top:12px">Place order</button></form>`);
+  <button class="btn full" style="margin-top:12px">Pay now</button></form>`);
 }
 function sumHtml(state,sub,disc){
   const sh=shipFee(state),vat=(sub-disc)*DB.settings.vat/100;
   return `<div class="row sp"><span>Subtotal</span><span>${fmt(sub)}</span></div>${disc?`<div class="row sp"><span>Discount</span><span>-${fmt(disc)}</span></div>`:''}
   <div class="row sp"><span>Delivery (${esc(state)})</span><span>${fmt(sh)}</span></div><div class="row sp"><span>VAT (${DB.settings.vat}%)</span><span>${fmt(vat)}</span></div>
-  <div class="row sp" style="font-size:16px;margin-top:6px"><b>Total</b><b>${fmt(sub-disc+sh+vat)}</b></div>`;
+  <div class="row sp" style="font-size:16px;margin-top:6px"><b>Total</b><b>${fmt(sub-disc+sh+vat)}</b></div>
+  <p class="mut" style="margin-top:6px">You enter your full delivery address right after you pay.</p>`;
 }
 function placeOrder(f){
   const ls=cartLines();if(!ls.length)return;
   for(const {l,p} of ls)if(l.qty>p.stock)return toast(p.name+': only '+p.stock+' left');
   const sub=cartSub(),cd=couponDiscount(COUPON,sub),sh=shipFee(f.state.value),vat=(sub-cd.d)*DB.settings.vat/100,total=sub-cd.d+sh+vat;
   const id=CLOUD?'ORD-'+Date.now().toString(36).toUpperCase():'ORD-'+(1000+DB.orders.length+1);
-  const o={id,userId:DB.session.user,name:f.name.value,phone:f.phone.value,email:(DB.users.find(u=>u.id===DB.session.user)||{}).email||'',address:f.address.value,state:f.state.value,city:f.city.value,
-    items:ls.map(({l,p})=>({id:p.id,name:p.name,price:fprice(p),qty:l.qty})),subtotal:sub,shipping:sh,discount:cd.d,coupon:cd.c?cd.c.code:'',vat,total,payment:f.payment.value,payStatus:'Pending',status:'Pending',date:new Date().toISOString()};
+  const o={id,userId:DB.session.user,name:f.name.value,phone:f.phone.value,email:(DB.users.find(u=>u.id===DB.session.user)||{}).email||'',address:'',state:f.state.value,city:'',phone2:'',landmark:'',notes:'',detailsPending:true,
+    items:ls.map(({l,p})=>({id:p.id,name:p.name,price:fprice(p),qty:l.qty})),subtotal:sub,shipping:sh,discount:cd.d,coupon:cd.c?cd.c.code:'',vat,total,payment:f.payment.value||'card',quotePending:false,payStatus:'Pending',status:'Pending',date:new Date().toISOString()};
   ls.forEach(({l,p})=>{p.stock-=l.qty;p.sold=(p.sold||0)+l.qty});
   if(cd.c)cd.c.used=(cd.c.used||0)+1;
   DB.orders.push(o);DB.cart=[];COUPON='';save();
   const s=DB.settings;
-  modal(`<h3>✅ Order placed</h3><p>Your order <b>${id}</b> total <b>${fmt(total)}</b> has been received.</p>
-  ${o.payment==='transfer'?`<pre style="background:var(--bg);padding:10px;border-radius:8px;margin:10px 0">${esc(s.bank)}\nReference: ${id}</pre><p class="mut">Send proof of payment via WhatsApp to confirm.</p>`:''}
-  ${o.payment==='card'?'<p class="mut">Card payment gateway is not connected yet. The admin will confirm payment manually.</p>':''}
-  <div class="row end"><button class="btn" data-a="myorders">View my orders</button></div>`);
+  startPayment(o);
   updateBadges();
-  if(o.payment==='card'&&PAYSTACK_KEY)payWithPaystack(o);
+}
+function startPayment(o){
+  if(o.payment==='card'&&PAYSTACK_KEY)return payWithPaystack(o);
+  payOrder(o.id);
+}
+function detailsForm(id){
+  const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  modal(`<h3>Delivery details</h3><p class="mut">Order ${o.id} · delivering to ${esc(o.state)}</p><form data-f="details" data-id="${o.id}"><label>House number and street</label><input name="address" required><label>Nearest landmark or bus stop</label><input name="landmark" required><div class="two"><div><label>Area / LGA</label><input name="city" required></div><div><label>Alternative phone (optional)</label><input name="phone2" type="tel"></div></div><label>Delivery notes (optional)</label><textarea name="notes" placeholder="Gate colour, who to call, best time"></textarea><button class="btn full" style="margin-top:12px">Save delivery details</button></form>`);
+}
+function payOrder(id){
+  const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  if(o.payment==='card'&&PAYSTACK_KEY)return payWithPaystack(o);
+  const s=DB.settings;
+  modal(`<h3>Pay ${fmt(o.total)}</h3><p>Order <b>${o.id}</b></p><pre style="background:var(--bg);padding:10px;border-radius:8px;margin:10px 0;white-space:pre-wrap">${esc(s.bank)}\nAmount: ${fmt(o.total)}\nReference: ${o.id}</pre><p class="mut">Pay by bank transfer, then send proof on WhatsApp and we will confirm.</p><div class="row end"><a class="btn ghost" target="_blank" href="https://wa.me/${esc(s.whatsapp)}?text=${encodeURIComponent('Payment for '+o.id+' '+fmt(o.total))}">Send proof on WhatsApp</a><button class="btn green" data-a="adddetails" data-id="${o.id}">I have paid. Add delivery address</button></div>`);
 }
 function authModal(mode){
   modal(`<h3>${mode==='login'?'Login':'Create account'}</h3><form data-f="${mode}">
@@ -484,9 +494,7 @@ function dashboard(){
 function products(){
   const q=A.q.toLowerCase(),l=DB.products.filter(p=>!q||(p.name+p.brand+p.sku).toLowerCase().includes(q));
   return `<div class="row sp" style="margin-bottom:10px"><input id="aq" placeholder="Search products..." value="${esc(A.q)}" style="max-width:300px"><div class="row"><button class="btn ghost sm" data-a="csvprod">Export CSV</button><button class="btn" data-a="pedit" data-id="">+ Add product</button></div></div>`+
-  tbl(['','Product','Category','Price','Stock','Status',''],l.map(p=>`<tr><td><img class="thumb" loading="lazy" src="${img(p)}"></td><td><b>${esc(p.name)}</b><div class="mut">${esc(p.brand)} · ${esc(p.sku)}</div></td><td>${esc(cat(p.cat).name)}</td>
-  <td>${fmt(fprice(p))}${p.discount?`<div class="mut"><s>${fmt(p.price)}</s> -${p.discount}%</div>`:''}</td><td>${p.stock}</td><td>${p.active?'<span class="tag ok">Active</span>':'<span class="tag">Hidden</span>'}${p.flash?' <span class="tag bad">Flash</span>':''}${p.featured?' <span class="tag blue">Featured</span>':''}</td>
-  <td style="white-space:nowrap"><button class="btn ghost sm" data-a="pedit" data-id="${p.id}">Edit</button> <button class="btn ghost sm" data-a="ptoggle" data-id="${p.id}">${p.active?'Hide':'Show'}</button> <button class="btn red sm" data-a="del" data-col="products" data-id="${p.id}">Del</button></td></tr>`));
+  `<div class="sec">${l.length?l.map(p=>`<div class="pcard"><img class="thumb" loading="lazy" src="${img(p)}"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><div class="mut">${esc(cat(p.cat).name)} · ${esc(p.sku)}</div><div>${fmt(fprice(p))}${p.discount?` <span class="mut"><s>${fmt(p.price)}</s> -${p.discount}%</span>`:''} · Stock ${p.stock}</div><div style="margin:4px 0">${p.active?'<span class="tag ok">Active</span>':'<span class="tag">Hidden</span>'}${p.flash?' <span class="tag bad">Flash</span>':''}${p.featured?' <span class="tag blue">Featured</span>':''}</div><div class="row"><button class="btn sm" data-a="pedit" data-id="${p.id}">Edit</button><button class="btn ghost sm" data-a="ptoggle" data-id="${p.id}">${p.active?'Hide':'Show'}</button><button class="btn red sm" data-a="del" data-col="products" data-id="${p.id}">Delete</button></div></div></div>`).join(''):'<div class="empty">No products yet</div>'}</div>`;
 }
 function productForm(id){
   const p=id?DB.products.find(x=>x.id===id):{name:'',cat:DB.categories[0]?.id,brand:'',price:0,discount:0,stock:0,sku:'EL-'+(1000+DB.products.length),desc:'',specs:'',warranty:'12 months',image:'',active:true,flash:false,featured:false};
@@ -512,13 +520,14 @@ function categories(){
 function orders(){
   const l=[...DB.orders].reverse().filter(o=>!A.ostatus||o.status===A.ostatus);
   return `<div class="row sp" style="margin-bottom:10px"><div class="row">${['',...STATUSES,'Cancelled'].map(s=>`<span class="chip ${A.ostatus===s?'on':''}" data-a="ofilter" data-id="${s}">${s||'All'}</span>`).join('')}</div><button class="btn ghost sm" data-a="csvord">Export CSV</button></div>`+
-  tbl(['Order','Customer','Date','Total','Payment','Status',''],l.map(o=>`<tr><td><b>${o.id}</b></td><td>${esc(o.name)}<div class="mut">${esc(o.state)}</div></td><td>${dstr(o.date)}</td><td>${fmt(o.total)}</td><td>${esc(o.payment)} ${stateTag(o.payStatus)}</td><td>${stateTag(o.status)}</td><td><button class="btn ghost sm" data-a="oview" data-id="${o.id}">Manage</button></td></tr>`));
+  tbl(['Order','Customer','Date','Total','Payment','Status',''],l.map(o=>`<tr data-a="oview" data-id="${o.id}" style="cursor:pointer"><td><b>${o.id}</b></td><td>${esc(o.name)}<div class="mut">${esc(o.state)}</div></td><td>${dstr(o.date)}</td><td>${fmt(o.total)}</td><td>${esc(o.payment)} ${stateTag(o.payStatus)}</td><td>${stateTag(o.status)}${o.quotePending&&o.status!=='Cancelled'?' <span class="tag bad">Needs delivery price</span>':''}${o.detailsPending&&o.status!=='Cancelled'?' <span class="tag warn">Waiting for address</span>':''}</td><td><button class="btn ghost sm" data-a="oview" data-id="${o.id}">Manage</button></td></tr>`));
 }
 function orderModal(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
-  modal(`<h3>${o.id} ${stateTag(o.status)}</h3><div class="mut">${dstr(o.date)} · ${esc(o.name)} · ${esc(o.phone)} · ${esc(o.email)}</div><div>${esc(o.address)}, ${esc(o.city)}, ${esc(o.state)}</div>
+  modal(`<h3>${o.id} ${stateTag(o.status)}</h3><div class="mut">${dstr(o.date)} · ${esc(o.name)} · ${esc(o.phone)} · ${esc(o.email)}</div><div style="margin:8px 0;padding:10px;background:var(--bg);border-radius:8px"><b>Delivery address</b>${o.detailsPending?' <span class="tag warn">Customer has not added it yet</span>':''}<div>${esc(o.address)}${o.landmark?', near '+esc(o.landmark):''}</div><div>${esc(o.city)}, ${esc(o.state)}</div><div class="mut">Phone: ${esc(o.phone)}${o.phone2?' / '+esc(o.phone2):''}</div>${o.notes?`<div class="mut">Note: ${esc(o.notes)}</div>`:''}<div class="row" style="margin-top:6px"><button class="btn ghost sm" data-a="copyaddr" data-id="${o.id}">Copy address</button><a class="btn ghost sm" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address+', '+o.city+', '+o.state+', Nigeria')}">Open in Maps</a></div></div>
+  ${o.status!=='Cancelled'&&o.payStatus!=='Paid'?`<form data-f="quote" data-id="${o.id}" class="row" style="margin:8px 0;align-items:flex-end"><div style="flex:1"><label>Delivery fee ₦ ${o.quotePending?'(waiting for your quote)':''}</label><input name="fee" type="number" min="0" step="any" required value="${o.quotePending?'':o.shipping}"></div><button class="btn sm green">${o.quotePending?'Send delivery price':'Update delivery price'}</button></form>`:''}
   <table style="margin:10px 0">${o.items.map(i=>`<tr><td>${esc(i.name)}</td><td>×${i.qty}</td><td>${fmt(i.price*i.qty)}</td></tr>`).join('')}
-  <tr><td colspan="2">Subtotal</td><td>${fmt(o.subtotal)}</td></tr>${o.discount?`<tr><td colspan="2">Discount ${esc(o.coupon)}</td><td>-${fmt(o.discount)}</td></tr>`:''}<tr><td colspan="2">Delivery</td><td>${fmt(o.shipping)}</td></tr><tr><td colspan="2">VAT</td><td>${fmt(o.vat)}</td></tr><tr><td colspan="2"><b>Total</b></td><td><b>${fmt(o.total)}</b></td></tr></table>
+  <tr><td colspan="2">Subtotal</td><td>${fmt(o.subtotal)}</td></tr>${o.discount?`<tr><td colspan="2">Discount ${esc(o.coupon)}</td><td>-${fmt(o.discount)}</td></tr>`:''}<tr><td colspan="2">Delivery</td><td>${o.quotePending?'Not set':fmt(o.shipping)}</td></tr><tr><td colspan="2">VAT</td><td>${fmt(o.vat)}</td></tr><tr><td colspan="2"><b>Total</b></td><td><b>${fmt(o.total)}</b></td></tr></table>
   <div class="two"><div><label>Order status</label><select data-i="ostat" data-id="${o.id}">${[...STATUSES,'Cancelled'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}</select></div>
   <div><label>Payment (${esc(o.payment)})</label><select data-i="opay" data-id="${o.id}">${['Pending','Paid','Failed','Refunded'].map(s=>`<option ${s===o.payStatus?'selected':''}>${s}</option>`).join('')}</select></div></div>
   <div class="row end"><a class="btn ghost" target="_blank" href="https://wa.me/${o.phone.replace(/\D/g,'').replace(/^0/,'234')}">WhatsApp customer</a><button class="btn dark" data-a="invoice" data-id="${o.id}">Print invoice</button></div>`,true);
@@ -581,7 +590,7 @@ function settings(){
   ${CLOUD?'':`<div><label>Admin email</label><input name="adminEmail" value="${esc(s.adminEmail)}"></div><div><label>Admin password</label><input name="adminPass" value="${esc(s.adminPass)}"></div>`}</div>
   <label>Bank transfer details</label><textarea name="bank">${esc(s.bank)}</textarea>
   <label class="chk"><input type="checkbox" name="card" ${s.card?'checked':''}>Accept card payments</label><label class="chk"><input type="checkbox" name="transfer" ${s.transfer?'checked':''}>Accept bank transfer</label>
-  <label class="chk"><input type="checkbox" name="cod" ${s.cod?'checked':''}>Accept pay on delivery</label><label class="chk"><input type="checkbox" name="autoApprove" ${s.autoApprove?'checked':''}>Auto-approve customer reviews</label>
+  <label class="chk"><input type="checkbox" name="autoApprove" ${s.autoApprove?'checked':''}>Auto-approve customer reviews</label>
   <div class="row end"><button class="btn">Save settings</button></div></form>
   <div class="sec"><h3>Data</h3><div class="row">${CLOUD?'<button class="btn green" data-a="cloudseed">Upload demo catalogue to cloud</button><span class="mut">Connected to Firebase</span>':'<button class="btn ghost" data-a="backup">Download backup</button><label class="btn ghost" style="margin:0">Restore backup<input type="file" accept=".json" data-i="restore" style="display:none"></label><button class="btn red" data-a="clrdemo">Clear demo orders &amp; customers</button><button class="btn red" data-a="reset">Reset everything</button>'}</div></div>`;
 }
@@ -608,7 +617,8 @@ const ACT={
   checkout,
   wishlist:()=>{S.view='wishlist';renderStore()},
   myorders:()=>{closeModal();S.view='orders';renderStore();if(CLOUD)pullOrders().then(renderStore).catch(cloudErr)},
-  paynow:id=>payWithPaystack(DB.orders.find(o=>o.id===id)),
+  paynow:id=>payOrder(id),
+  adddetails:id=>detailsForm(id),
   account:()=>{if(DB.session.user){const u=DB.users.find(x=>x.id===DB.session.user);modal(`<h3>Hi, ${esc(u.name)}</h3><p class="mut">${esc(u.email)}</p><div class="row" style="margin-top:12px"><button class="btn" data-a="myorders">My orders</button><button class="btn ghost" data-a="logout">Logout</button></div>`)}else authModal('login')},
   reg:()=>authModal('register'),log:()=>authModal('login'),
   logout:()=>{if(CLOUD){au.signOut();closeModal();S.view='home';return}DB.session.user=null;save();closeModal();S.view='home';renderStore()},
@@ -627,6 +637,7 @@ const ACT={
   ofilter:id=>{A.ostatus=id;refreshAdmin()},
   oview:id=>orderModal(id),
   invoice,
+  copyaddr:id=>{const o=DB.orders.find(x=>x.id===id);if(!o)return;const t=`${o.name}, ${o.phone}${o.phone2?' / '+o.phone2:''}\n${o.address}${o.landmark?', near '+o.landmark:''}\n${o.city}, ${o.state}`;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Address copied')).catch(()=>toast('Could not copy'))},
   ublock:id=>{const u=DB.users.find(x=>x.id===id);u.blocked=!u.blocked;save();refreshAdmin()},
   stk:(id,el)=>{const p=DB.products.find(x=>x.id===id);p.stock=Math.max(0,p.stock+Number(el.dataset.n));save();refreshAdmin()},
   rtoggle:id=>{const r=DB.reviews.find(x=>x.id===id);r.approved=!r.approved;save();refreshAdmin()},
@@ -673,6 +684,8 @@ document.addEventListener('submit',e=>{
     DB.users.push(u);DB.session.user=u.id;save();closeModal();renderStore();toast('Account created')}
   if(k==='order')placeOrder(f);
   if(k==='review'){if(CLOUD&&!DB.session.user)return toast('Please login to leave a review');DB.reviews.push({id:'r'+uid(),pid:f.dataset.id,name:f.name.value,rating:Number(f.rating.value),text:f.text.value,date:new Date().toISOString(),approved:DB.settings.autoApprove});save();toast(DB.settings.autoApprove?'Review posted':'Review submitted for approval');viewProduct(f.dataset.id)}
+  if(k==='details'){const o=DB.orders.find(x=>x.id===f.dataset.id);if(!o)return;o.address=f.address.value;o.landmark=f.landmark.value;o.city=f.city.value;o.phone2=f.phone2.value;o.notes=f.notes.value;o.detailsPending=false;save();closeModal();updateBadges();modal(`<h3>✅ All set</h3><p>Order <b>${o.id}</b> is received. We will call <b>${esc(o.phone)}</b> about delivery.</p><div class="row end"><button class="btn" data-a="myorders">View my orders</button></div>`)}
+  if(k==='quote'){const o=DB.orders.find(x=>x.id===f.dataset.id),fee=Number(f.fee.value)||0;o.shipping=fee;o.total=o.subtotal-o.discount+o.vat+fee;o.quotePending=false;save();refreshAdmin();orderModal(o.id);toast('Delivery price saved. Customer can now pay.')}
   if(k==='admlogin'&&CLOUD)return au.signInWithEmailAndPassword(f.email.value,f.pass.value).then(async c=>{await onAuth(c.user);if(!DB.session.admin){await au.signOut();toast('This account is not an admin')}else route()}).catch(x=>toast(authMsg(x)));
   if(k==='admlogin'){if(f.email.value===DB.settings.adminEmail&&f.pass.value===DB.settings.adminPass){DB.session.admin=true;save();renderAdmin()}else toast('Wrong admin credentials')}
   if(k==='product'){
@@ -687,7 +700,7 @@ document.addEventListener('submit',e=>{
     save();closeModal();refreshAdmin();toast('Saved');
   }
   if(k==='settings'){const s=DB.settings;['name','tagline','phone','whatsapp','email','address','bank',...(CLOUD?[]:['adminEmail','adminPass'])].forEach(x=>s[x]=f[x].value);
-    s.vat=Number(f.vat.value)||0;s.lowStock=Number(f.lowStock.value)||0;['card','transfer','cod','autoApprove'].forEach(x=>s[x]=f[x].checked);save();toast('Settings saved')}
+    s.vat=Number(f.vat.value)||0;s.lowStock=Number(f.lowStock.value)||0;['card','transfer','autoApprove'].forEach(x=>s[x]=f[x].checked);save();toast('Settings saved')}
 });
 window.addEventListener('hashchange',route);
 setInterval(()=>{tick()},1000);
