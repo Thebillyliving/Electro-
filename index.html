@@ -167,8 +167,9 @@ function cloudErr(e){console.error(e);toast('Cloud: '+(e.code==='permission-deni
 function loadScript(u){return new Promise((r,j)=>{const x=document.createElement('script');x.src=u;x.onload=r;x.onerror=()=>j(new Error('Failed to load '+u));document.head.appendChild(x)})}
 async function cloudInit(){
   const b='https://www.gstatic.com/firebasejs/10.12.2/firebase-';
-  for(const m of ['app','auth','firestore','storage'])await loadScript(b+m+'-compat.js');
-  firebase.initializeApp(FIREBASE_CONFIG);fs=firebase.firestore();au=firebase.auth();st=firebase.storage();
+  await loadScript(b+'app-compat.js');
+  await Promise.all(['auth','firestore'].map(m=>loadScript(b+m+'-compat.js')));
+  firebase.initializeApp(FIREBASE_CONFIG);fs=firebase.firestore();au=firebase.auth();
 }
 const docs=q=>q.docs.map(d=>({...d.data(),id:d.id}));
 const snapOf=l=>Object.fromEntries(l.map(x=>[x.id,JSON.stringify(x)]));
@@ -204,7 +205,8 @@ async function onAuth(u){
     try{await pullOrders()}catch(e){cloudErr(e)}
   }
 }
-async function uploadImage(dataUrl){const b=await (await fetch(dataUrl)).blob(),r=st.ref('products/'+uid()+'.jpg');await r.put(b,{contentType:'image/jpeg'});return r.getDownloadURL()}
+async function getStorage(){if(!st){await loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js');st=firebase.storage()}return st}
+async function uploadImage(dataUrl){const sg=await getStorage(),b=await (await fetch(dataUrl)).blob(),r=sg.ref('products/'+uid()+'.jpg');await r.put(b,{contentType:'image/jpeg'});return r.getDownloadURL()}
 async function boot(){
   if(!CLOUD){route();return}
   try{
@@ -237,7 +239,7 @@ function img(p){
 }
 function resizeImage(file,max,cb){
   const r=new FileReader();
-  r.onload=()=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.8))};i.src=r.result};
+  r.onload=()=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.72))};i.src=r.result};
   r.readAsDataURL(file);
 }
 function csv(name,rows){
@@ -279,7 +281,7 @@ function header(){
 function card(p){
   const r=rate(p),inW=DB.wish.includes(p.id),out=p.stock<=0;
   return `<div class="card">${p.discount?`<span class="off">-${p.discount}%</span>`:''}<button class="heart" data-a="wish" data-id="${p.id}">${inW?'❤️':'♡'}</button>
-  <img src="${img(p)}" alt="" data-a="view" data-id="${p.id}"><div class="b"><div class="nm" data-a="view" data-id="${p.id}">${esc(p.name)}</div>
+  <img src="${img(p)}" alt="" loading="lazy" decoding="async" data-a="view" data-id="${p.id}"><div class="b"><div class="nm" data-a="view" data-id="${p.id}">${esc(p.name)}</div>
   <div class="stars">${r.n?stars(r.avg)+` <span class="mut">(${r.n})</span>`:'<span class="mut">No reviews</span>'}</div>
   <div class="price">${fmt(fprice(p))}${p.discount?`<span class="old">${fmt(p.price)}</span>`:''}</div>
   <div class="mut">${out?'<span style="color:var(--bad)">Out of stock</span>':p.stock<=DB.settings.lowStock?`<span style="color:var(--warn)">Only ${p.stock} left</span>`:'In stock'}</div>
@@ -482,7 +484,7 @@ function dashboard(){
 function products(){
   const q=A.q.toLowerCase(),l=DB.products.filter(p=>!q||(p.name+p.brand+p.sku).toLowerCase().includes(q));
   return `<div class="row sp" style="margin-bottom:10px"><input id="aq" placeholder="Search products..." value="${esc(A.q)}" style="max-width:300px"><div class="row"><button class="btn ghost sm" data-a="csvprod">Export CSV</button><button class="btn" data-a="pedit" data-id="">+ Add product</button></div></div>`+
-  tbl(['','Product','Category','Price','Stock','Status',''],l.map(p=>`<tr><td><img class="thumb" src="${img(p)}"></td><td><b>${esc(p.name)}</b><div class="mut">${esc(p.brand)} · ${esc(p.sku)}</div></td><td>${esc(cat(p.cat).name)}</td>
+  tbl(['','Product','Category','Price','Stock','Status',''],l.map(p=>`<tr><td><img class="thumb" loading="lazy" src="${img(p)}"></td><td><b>${esc(p.name)}</b><div class="mut">${esc(p.brand)} · ${esc(p.sku)}</div></td><td>${esc(cat(p.cat).name)}</td>
   <td>${fmt(fprice(p))}${p.discount?`<div class="mut"><s>${fmt(p.price)}</s> -${p.discount}%</div>`:''}</td><td>${p.stock}</td><td>${p.active?'<span class="tag ok">Active</span>':'<span class="tag">Hidden</span>'}${p.flash?' <span class="tag bad">Flash</span>':''}${p.featured?' <span class="tag blue">Featured</span>':''}</td>
   <td style="white-space:nowrap"><button class="btn ghost sm" data-a="pedit" data-id="${p.id}">Edit</button> <button class="btn ghost sm" data-a="ptoggle" data-id="${p.id}">${p.active?'Hide':'Show'}</button> <button class="btn red sm" data-a="del" data-col="products" data-id="${p.id}">Del</button></td></tr>`));
 }
@@ -613,7 +615,7 @@ const ACT={
   cancelmine:id=>{const o=DB.orders.find(x=>x.id===id);if(o&&o.status==='Pending'&&confirm('Cancel this order?')){if(CLOUD)o.status='Cancelled';else setOrderStatus(o,'Cancelled');save();renderStore()}},
   tostore:()=>{location.hash='';},
   admlogout:()=>{if(CLOUD){au.signOut();return}DB.session.admin=false;save();renderAdmin()},
-  tab:id=>{A.tab=id;A.q='';renderAdmin();window.scrollTo(0,0);if(CLOUD)pullOrders().then(refreshAdmin).catch(cloudErr)},
+  tab:id=>{A.tab=id;A.q='';renderAdmin();window.scrollTo(0,0);if(CLOUD&&['dashboard','orders','customers','payments','analytics'].includes(id)&&Date.now()-(window.__po||0)>60000){window.__po=Date.now();pullOrders().then(refreshAdmin).catch(cloudErr)}},
   cloudseed:()=>{if(!confirm('Upload demo products, categories, banners, coupons and shipping zones to the cloud?'))return;const d=seed();['products','categories','coupons','banners','shipping','reviews'].forEach(k=>DB[k]=d[k]);save();refreshAdmin();toast('Demo catalogue uploaded')},
   pedit:id=>productForm(id),
   ptoggle:id=>{const p=DB.products.find(x=>x.id===id);p.active=!p.active;save();refreshAdmin()},
@@ -656,7 +658,7 @@ document.addEventListener('change',e=>{
   if(i==='chstate'){const sub=cartSub(),cd=couponDiscount(COUPON,sub);$('#sum').innerHTML=sumHtml(t.value,sub,cd.d)}
   if(i==='ostat'){setOrderStatus(DB.orders.find(o=>o.id===t.dataset.id),t.value);save();refreshAdmin();orderModal(t.dataset.id);toast('Status updated')}
   if(i==='opay'){DB.orders.find(o=>o.id===t.dataset.id).payStatus=t.value;save();refreshAdmin();orderModal(t.dataset.id);toast('Payment updated')}
-  if(i==='pimg'&&t.files[0])resizeImage(t.files[0],700,d=>{const show=u=>{t.form.image.value=u;$('#pprev').innerHTML=`<img src="${u}" style="height:70px;border-radius:8px">`};if(CLOUD){toast('Uploading image...');uploadImage(d).then(show).catch(cloudErr)}else show(d)});
+  if(i==='pimg'&&t.files[0])resizeImage(t.files[0],600,d=>{const show=u=>{t.form.image.value=u;$('#pprev').innerHTML=`<img src="${u}" style="height:70px;border-radius:8px">`};if(CLOUD){toast('Uploading image...');uploadImage(d).then(show).catch(cloudErr)}else show(d)});
   if(i==='restore'&&t.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.products)throw 0;DB=d;DB.session={user:null,admin:true};save();refreshAdmin();toast('Restored')}catch(x){toast('Invalid backup file')}};r.readAsText(t.files[0])}
 });
 document.addEventListener('submit',e=>{
