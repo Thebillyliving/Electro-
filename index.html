@@ -247,7 +247,7 @@ function img(p){
 }
 function resizeImage(file,max,cb){
   const r=new FileReader();
-  r.onload=()=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.72))};i.src=r.result};
+  r.onload=()=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.68))};i.src=r.result};
   r.readAsDataURL(file);
 }
 function csv(name,rows){
@@ -721,7 +721,7 @@ document.addEventListener('change',e=>{
   if(i==='chstate'){const sub=cartSub(),cd=couponDiscount(COUPON,sub);$('#sum').innerHTML=sumHtml(t.value,sub,cd.d)}
   if(i==='ostat'){setOrderStatus(DB.orders.find(o=>o.id===t.dataset.id),t.value);save();refreshAdmin();orderModal(t.dataset.id);toast('Status updated')}
   if(i==='opay'){DB.orders.find(o=>o.id===t.dataset.id).payStatus=t.value;save();refreshAdmin();orderModal(t.dataset.id);toast('Payment updated')}
-  if(i==='pimg'&&t.files[0])resizeImage(t.files[0],600,d=>{const show=u=>{t.form.image.value=u;$('#pprev').innerHTML=`<img src="${u}" style="height:70px;border-radius:8px">`};if(CLOUD){toast('Uploading image...');uploadImage(d).then(show).catch(cloudErr)}else show(d)});
+  if(i==='pimg'&&t.files[0])resizeImage(t.files[0],480,d=>{const show=u=>{t.form.image.value=u;$('#pprev').innerHTML=`<img src="${u}" style="height:70px;border-radius:8px">`};if(CLOUD){toast('Adding image...');Promise.race([uploadImage(d),new Promise((_,j)=>setTimeout(j,7000))]).then(show).catch(()=>{show(d);toast('Image added')})}else show(d)});
   if(i==='restore'&&t.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.products)throw 0;DB=d;DB.session={user:null,admin:true};save();refreshAdmin();toast('Restored')}catch(x){toast('Invalid backup file')}};r.readAsText(t.files[0])}
 });
 document.addEventListener('submit',e=>{
