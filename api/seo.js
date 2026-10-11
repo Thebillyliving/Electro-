@@ -49,12 +49,14 @@ const CSS = `:root{--acc:#ff6a00;--green:#16a34a}*{box-sizing:border-box;margin:
 
 function shell(o, s, { title, desc, canonical, image, body, ld, noindex }) {
   const name = s.name || 'ELECTRO';
-  const gaId = ''; // GA is loaded by the app; add G-XXXX in the app file
+  const gaId = /^G-[A-Z0-9]{4,}$/i.test(s.gaId || '') ? s.gaId : '';
+  const ga = gaId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${gaId}')</script>` : '';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title><meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${esc(canonical)}">${noindex ? '<meta name="robots" content="noindex">' : '<meta name="robots" content="index,follow,max-image-preview:large">'}
 <meta property="og:type" content="website"><meta property="og:site_name" content="${esc(name)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(canonical)}"><meta property="og:image" content="${esc(image || o + '/icon-512.png')}">
 <meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#ff6a00"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon-192.png">
+${ga}
 ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>` : ''}
 <style>${CSS}</style></head><body>
 <div class="top"><a href="/"><b>ELEC<span>TRO</span></b></a><a href="/">Shop all</a></div>
@@ -77,7 +79,7 @@ function productPage(o, s, p, cats, prods, reviews) {
   const c = cats.find(x => x.id === p.cat) || { name: 'Electronics' };
   const rs = reviewStats(reviews.filter(r => r.pid === p.id));
   const url = pUrl(p, o), price = fprice(p);
-  const desc = `${p.name} for ${money(price)} in Nigeria. ${(p.desc || '').slice(0, 110)} Warranty: ${p.warranty || 'N/A'}. Delivery nationwide.`.slice(0, 158);
+  const desc = (p.seoDesc || `${p.name} for ${money(price)} in Nigeria. ${(p.desc || '').slice(0, 110)} Warranty: ${p.warranty || 'N/A'}. Delivery nationwide.`).slice(0, 158);
   const ld = [{
     '@context': 'https://schema.org', '@type': 'Product', name: p.name, image: [imgUrl(p, o)],
     description: p.desc || p.name, sku: p.sku || p.id, brand: { '@type': 'Brand', name: p.brand || 'ELECTRO' }, category: c.name,
@@ -104,7 +106,7 @@ ${specs.length ? `<h2>Specifications</h2><table>${specs.map(x => `<tr><td><b>${e
 <h2>Delivery and payment</h2><p>Pay securely online, then add your delivery address. Delivery to all Nigerian states, fee shown at checkout. <a href="/info/delivery">Delivery info</a> · <a href="/info/returns">Returns</a></p>
 ${rs ? `<h2>Customer reviews</h2>${rs.list.slice(0, 5).map(r => `<p><b>${esc(r.name)}</b> ★${esc(r.rating)}<br>${esc(r.text)}</p>`).join('')}` : ''}
 ${rel.length ? `<h2>Related products</h2><div class="grid">${rel.map(x => card(x, o)).join('')}</div>` : ''}`;
-  return shell(o, s, { title: `${p.name} price in Nigeria | ${s.name || 'ELECTRO'}`.slice(0, 70), desc, canonical: url, image: imgUrl(p, o), body, ld });
+  return shell(o, s, { title: (p.seoTitle || `${p.name} price in Nigeria | ${s.name || 'ELECTRO'}`).slice(0, 70), desc, canonical: url, image: imgUrl(p, o), body, ld });
 }
 
 function categoryPage(o, s, c, prods, city) {
@@ -155,6 +157,15 @@ module.exports = async (req, res) => {
       const p = decDoc(await r.json()), m = /^data:([^;]+);base64,(.*)$/.exec(p.image || '');
       if (!m) { res.statusCode = 404; return res.end(); }
       res.setHeader('Content-Type', m[1]); res.setHeader('Cache-Control', 'public, s-maxage=86400, max-age=86400'); return res.end(Buffer.from(m[2], 'base64'));
+    }
+    if (t === 'file') {
+      const f = String(id || '').toLowerCase();
+      const nf = c => { res.statusCode = 404; res.setHeader('Cache-Control', 'no-store'); return res.end('Not found'); };
+      if (!/^google[a-z0-9]+\.html$/.test(f)) return nf();
+      const s0 = await settings();
+      if (String(s0.gscFile || '').toLowerCase() !== f) return nf();
+      res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 's-maxage=60');
+      return res.end('google-site-verification: ' + f);
     }
     if (t === 'info') { const s = await settings(); const h = infoPage(o, s, id); return h ? html(200, h, 's-maxage=3600') : html(404, shell(o, s, { title: 'Not found', desc: 'Not found', canonical: o, body: '<h1>Page not found</h1><a class="btn" href="/">Shop</a>', noindex: true }), 'no-store'); }
     const [s, cats, prodsAll] = await Promise.all([settings(), list('categories'), list('products')]);
