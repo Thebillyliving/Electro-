@@ -188,15 +188,27 @@ async function pullOrders(){
   else DB.orders=[];
   SNAP.orders=snapOf(DB.orders);
 }
+let PEND=0,SERR='',pillT=0;
+function pill(){
+  if(!DB.session||!DB.session.admin)return;
+  let e=$('#savepill');
+  if(!e){e=document.createElement('div');e.id='savepill';e.onclick=()=>{if(SERR){SERR='';cloudPush()}pill()};e.style.cssText='position:fixed;left:10px;bottom:64px;z-index:120;padding:8px 14px;border-radius:20px;font:600 12px system-ui;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.35);max-width:90vw';document.body.appendChild(e)}
+  clearTimeout(pillT);
+  if(PEND){e.textContent='Saving to cloud...';e.style.background='#d97706';e.style.display='block'}
+  else if(SERR){e.textContent='NOT SAVED: '+SERR+'. Tap here to retry';e.style.background='#dc2626';e.style.display='block'}
+  else{e.textContent='Saved to cloud';e.style.background='#16a34a';e.style.display='block';pillT=setTimeout(()=>e.style.display='none',2500)}
+}
+function track(p,undo){PEND++;pill();return p.then(()=>{PEND--;pill()},e=>{PEND--;if(undo)undo();SERR=e.code==='permission-denied'?'not allowed. Log in again as admin':(e.message||'error');cloudErr(e);pill()})}
+window.addEventListener('beforeunload',e=>{if(PEND){e.preventDefault();e.returnValue=''}});
 function cloudPush(){
   if(!fs)return;
   COLS.forEach(c=>{
     SNAP[c]=SNAP[c]||{};const cur={};(DB[c]||[]).forEach(x=>cur[x.id]=x);
-    for(const id in cur){const j=JSON.stringify(cur[id]);if(SNAP[c][id]!==j){SNAP[c][id]=j;fs.collection(c).doc(id).set(clean(cur[id])).catch(cloudErr)}}
-    if(DB.session.admin)for(const id in SNAP[c])if(!cur[id]){delete SNAP[c][id];fs.collection(c).doc(id).delete().catch(cloudErr)}
+    for(const id in cur){const j=JSON.stringify(cur[id]);if(SNAP[c][id]!==j){const prev=SNAP[c][id];SNAP[c][id]=j;track(fs.collection(c).doc(id).set(clean(cur[id])),()=>{if(prev===undefined)delete SNAP[c][id];else SNAP[c][id]=prev})}}
+    if(DB.session.admin)for(const id in SNAP[c])if(!cur[id]){const old=SNAP[c][id];delete SNAP[c][id];track(fs.collection(c).doc(id).delete(),()=>{SNAP[c][id]=old})}
   });
   const j=JSON.stringify(pubSettings());
-  if(DB.session.admin&&SNAP.settings!==j){SNAP.settings=j;fs.doc('settings/main').set(pubSettings()).catch(cloudErr)}
+  if(DB.session.admin&&SNAP.settings!==j){const old=SNAP.settings;SNAP.settings=j;track(fs.doc('settings/main').set(pubSettings()),()=>{SNAP.settings=old})}
 }
 async function onAuth(u){
   DB.session={user:null,admin:false};DB.orders=[];SNAP.orders={};
@@ -245,10 +257,11 @@ function img(p){
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h},70%,92%)"/><stop offset="1" stop-color="hsl(${h},60%,78%)"/></linearGradient></defs><rect width="400" height="400" fill="url(#g)"/><text x="200" y="240" font-size="150" text-anchor="middle">${c.icon}</text></svg>`;
   return 'data:image/svg+xml,'+encodeURIComponent(svg);
 }
-function resizeImage(file,max,cb){
-  const r=new FileReader();
-  r.onload=()=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.68))};i.src=r.result};
-  r.readAsDataURL(file);
+function resizeImage(file,max,cb,fail){
+  const u=URL.createObjectURL(file),i=new Image();
+  i.onerror=()=>{URL.revokeObjectURL(u);fail&&fail()};
+  i.onload=()=>{try{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(i.width*s));c.height=Math.max(1,Math.round(i.height*s));c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);cb(c.toDataURL('image/jpeg',.62))}catch(e){fail&&fail()}};
+  i.src=u;
 }
 function csv(name,rows){
   const t=rows.map(r=>r.map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')).join('\n');
@@ -390,6 +403,7 @@ function renderStore(){
   <div>📞 ${esc(s.phone)}<br>✉️ ${esc(s.email)}<br><a href="https://wa.me/${esc(s.whatsapp)}" target="_blank" style="color:#86efac">WhatsApp us</a></div>
   <div><a href="/info/privacy" style="color:#cbd5e1">Privacy</a> · <a href="/info/terms" style="color:#cbd5e1">Terms</a><br><a href="/info/returns" style="color:#cbd5e1">Returns</a> · <a href="/info/delivery" style="color:#cbd5e1">Delivery</a><br><a href="#admin" style="color:#94a3b8">Admin login</a></div></div></div></div>`;
   if(S.view==='home'){renderGrid();$('[data-i=sort]').value=S.sort;tick()}
+  applySeo();initGA();
 }
 
 /* product detail */
@@ -488,7 +502,7 @@ function authModal(mode){
 
 /* ============ ADMIN ============ */
 const A={tab:'dashboard',q:'',ostatus:''};
-const TABS=[['dashboard','📊 Dashboard'],['products','📦 Products'],['categories','🗂 Categories'],['orders','🧾 Orders'],['customers','👥 Customers'],['inventory','🏭 Inventory'],['coupons','🏷 Coupons'],['banners','🖼 Banners'],['reviews','⭐ Reviews'],['shipping','🚚 Shipping'],['payments','💳 Payments'],['analytics','📈 Analytics'],['settings','⚙️ Settings']];
+const TABS=[['dashboard','📊 Dashboard'],['products','📦 Products'],['seo','🔎 SEO & Pages'],['categories','🗂 Categories'],['orders','🧾 Orders'],['customers','👥 Customers'],['inventory','🏭 Inventory'],['coupons','🏷 Coupons'],['banners','🖼 Banners'],['reviews','⭐ Reviews'],['shipping','🚚 Shipping'],['payments','💳 Payments'],['analytics','📈 Analytics'],['settings','⚙️ Settings']];
 const CRUD={
   categories:{title:'category',def:{name:'',icon:'📦'},fields:[{k:'name',l:'Name'},{k:'icon',l:'Icon (emoji)'}]},
   coupons:{title:'coupon',def:{code:'',type:'percent',value:10,min:0,expires:'',active:true,used:0},fields:[{k:'code',l:'Code'},{k:'type',l:'Type',t:'select',o:['percent','fixed']},{k:'value',l:'Value (% or ₦)',t:'number'},{k:'min',l:'Minimum spend ₦',t:'number'},{k:'expires',l:'Expires',t:'date'},{k:'active',l:'Active',t:'checkbox'}]},
@@ -519,7 +533,7 @@ function renderAdmin(){
   <div class="main"><div class="bar"><h2>${TABS.find(t=>t[0]===A.tab)[1]}</h2><div class="row"><button class="btn ghost sm" data-a="tostore">View store</button><button class="btn dark sm" data-a="admlogout">Logout</button></div></div><div id="adm">${adminTab()}</div></div></div>`;
 }
 function refreshAdmin(){const y=window.scrollY;renderAdmin();window.scrollTo(0,y)}
-function adminTab(){return ({dashboard,products,categories,orders,customers,inventory,coupons,banners,reviews,shipping,payments,analytics,settings})[A.tab]()}
+function adminTab(){return ({dashboard,products,seo:seoTab,categories,orders,customers,inventory,coupons,banners,reviews,shipping,payments,analytics,settings})[A.tab]()}
 
 function dashboard(){
   const ro=revenueOrders(),rev=ro.reduce((a,o)=>a+o.total,0),low=DB.products.filter(p=>p.stock<=DB.settings.lowStock);
@@ -551,6 +565,8 @@ function productForm(id){
   <div class="two"><div><label>Stock</label><input name="stock" type="number" min="0" value="${p.stock}"></div><div><label>SKU</label><input name="sku" value="${esc(p.sku)}"></div></div>
   <label>Warranty</label><input name="warranty" value="${esc(p.warranty)}">
   <label>Search keywords (other names people use, separated by commas)</label><input name="tags" placeholder="e.g. gen, light, fridge, freezer" value="${esc(p.tags||'')}">
+  <label>Google page title (optional, leave empty to auto-generate)</label><input name="seoTitle" maxlength="70" value="${esc(p.seoTitle||'')}">
+  <label>Google description (optional, up to 158 letters)</label><textarea name="seoDesc" rows="2" maxlength="158">${esc(p.seoDesc||'')}</textarea>
   <label>Description</label><textarea name="desc">${esc(p.desc)}</textarea>
   <label>Specifications (one per line, Key: Value)</label><textarea name="specs">${esc(p.specs)}</textarea>
   <label>Product image (optional)</label><input type="file" accept="image/*" data-i="pimg"><input type="hidden" name="image" value="${esc(p.image)}">
@@ -628,6 +644,78 @@ function analytics(){
   <div class="cols"><div class="sec"><h3>Sales by category</h3>${barChart(cats,short)}</div><div class="sec"><h3>Orders by status</h3>${barChart(byStatus)}</div></div>
   <div class="sec"><h3>Orders by state</h3>${Object.entries(byState).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`<div class="row sp" style="padding:4px 0"><span>${esc(s)}</span><b>${n}</b></div>`).join('')||'<div class="empty">No data</div>'}</div>`;
 }
+/* ---- SEO & Pages (admin) ---- */
+const CITIES=['Lagos','Abuja','Port Harcourt','Ibadan','Kano','Benin City','Enugu','Kaduna','Warri','Abeokuta','Owerri','Asaba','Uyo','Jos','Ilorin'];
+function seoMeta(p){const s=DB.settings.name||'ELECTRO',pr=Math.round(fprice(p));
+  return{title:(p.seoTitle||`${p.name} price in Nigeria | ${s}`).slice(0,70),desc:(p.seoDesc||`${p.name} for ${fmt(pr)} in Nigeria. ${(p.desc||'').slice(0,110)} Warranty: ${p.warranty||'N/A'}. Delivery nationwide.`).slice(0,158)}}
+function seoIssues(p){const l=[];if(!p.image)l.push('Add a photo');if((p.desc||'').trim().length<60)l.push('Longer description (60+ letters)');if(!(p.specs||'').trim())l.push('Add specifications');if(!(p.tags||'').trim())l.push('Add search keywords');return l}
+function copyText(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Link copied')).catch(()=>prompt('Copy this link:',t))}
+const catLink=c=>location.origin+'/c/'+c.id+'/'+slug(c.name),cityLink=c=>location.origin+'/city/'+slug(c);
+function seoTab(){
+  const s=DB.settings,act=DB.products.filter(p=>p.active),gh=/github\.io$/.test(location.host);
+  const done=(ok,t,fix)=>`<div style="padding:4px 0">${ok?'<span class="tag ok">Done</span>':'<span class="tag warn">To do</span>'} ${t}${ok?'':` <span class="mut">${fix}</span>`}</div>`;
+  const demo=s.whatsapp==='2348000000000'||/800 000 0000/.test(s.phone||'');
+  const used=[...new Set(act.map(p=>p.cat))].map(id=>DB.categories.find(c=>c.id===id)).filter(Boolean);
+  return `<div class="sec"><h3>Page generator</h3>
+  <p class="mut" style="margin:6px 0">Every product, category and city gets its own page that Google can read. The pages build themselves from your products. Changes show within 5 minutes.</p>
+  ${gh?'<p><span class="tag bad">Wrong address</span> You opened the admin from GitHub. Pages only work on your Vercel address (ends with .vercel.app). Open it there instead.</p>':''}
+  ${CLOUD?'':'<p><span class="tag warn">Demo mode</span> Pages are generated only when the app is connected to Firebase.</p>'}
+  <div class="row" style="margin:8px 0"><button class="btn" data-a="seocheck" data-id="quick">Generate and check pages</button><button class="btn ghost" data-a="seocheck" data-id="all">Test every page</button><a class="btn ghost" target="_blank" href="/sitemap.xml">Open sitemap</a></div>
+  <div id="seostat"></div></div>
+  <div class="sec"><h3>Checklist</h3>
+  ${done(!demo,'Real phone and WhatsApp number','Go to Settings. Pages and WhatsApp buttons use them.')}
+  ${done(act.length>0,act.length+' active products','Add products in the Products tab.')}
+  ${done(act.length>0&&act.every(p=>p.image),'Every product has a photo','Edit the products marked "Add a photo" below.')}
+  ${done(!!s.gaId,'Google Analytics connected','Paste your G- ID below.')}
+  ${done(!!s.gscFile,'Google Search Console verified','Paste the verification file name below, then verify in Search Console.')}</div>
+  <form data-f="seoset" class="sec"><h3>Google settings</h3>
+  <label>Google Analytics ID (starts with G-)</label><input name="gaId" placeholder="G-ABC123XYZ" value="${esc(s.gaId||'')}">
+  <label>Search Console verification file name</label><input name="gscFile" placeholder="google1234abcd.html" value="${esc(s.gscFile||'')}">
+  <p class="mut">In Search Console choose "URL prefix", then "HTML file". Copy the file name it shows, paste it here, tap Save, then tap Verify in Search Console. No file upload needed.</p>
+  <label>Home page title for Google</label><input name="seoTitle" maxlength="70" placeholder="ELECTRO | Buy genuine electronics and machines in Nigeria" value="${esc(s.seoTitle||'')}">
+  <label>Home page description for Google</label><textarea name="seoDesc" rows="2" maxlength="158">${esc(s.seoDesc||'')}</textarea>
+  <div class="row end"><button class="btn">Save Google settings</button></div></form>
+  <div class="sec"><h3>Product pages (${act.length})</h3>${act.length?act.map(p=>{const is=seoIssues(p);return `<div class="pcard"><img class="thumb" loading="lazy" src="${img(p)}"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>
+  <div class="mut" style="word-break:break-all">/p/${esc(p.id)}/${slug(p.name)}</div>
+  <div style="margin:4px 0">${is.length?is.map(x=>`<span class="tag warn">${x}</span>`).join(' '):'<span class="tag ok">Page is complete</span>'}</div>
+  <div class="row"><button class="btn sm" data-a="seoprev" data-id="${p.id}">Preview</button><button class="btn ghost sm" data-a="copylink" data-id="${p.id}">Copy link</button><a class="btn ghost sm" target="_blank" href="https://wa.me/?text=${encodeURIComponent(p.name+' '+fmt(fprice(p))+': '+pLink(p))}">Share</a><button class="btn ghost sm" data-a="pedit" data-id="${p.id}">Edit</button></div></div></div>`}).join(''):'<div class="empty">No active products yet.</div>'}
+  ${DB.products.length>act.length?`<p class="mut" style="margin-top:8px">${DB.products.length-act.length} hidden product(s) have no page.</p>`:''}</div>
+  <div class="sec"><h3>Category pages (${used.length})</h3>${used.map(c=>`<div class="row sp" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${c.icon} ${esc(c.name)} <span class="mut">${act.filter(p=>p.cat===c.id).length} products</span></span><span class="row"><a class="btn ghost sm" target="_blank" href="${catLink(c)}">Open</a><button class="btn ghost sm" data-a="copytxt" data-t="${esc(catLink(c))}">Copy link</button></span></div>`).join('')||'<div class="empty">No categories with products yet.</div>'}</div>
+  <div class="sec"><h3>City pages (${CITIES.length})</h3><p class="mut" style="margin-bottom:8px">Help people searching "electronics in Lagos" and similar. Share these links in local groups.</p><div class="row" style="flex-wrap:wrap">${CITIES.map(c=>`<a class="chip" target="_blank" href="${cityLink(c)}">${c}</a>`).join('')}</div></div>
+  <div class="sec"><h3>Policy pages</h3><div class="row" style="flex-wrap:wrap">${['privacy','terms','returns','delivery','about'].map(x=>`<a class="chip" target="_blank" href="/info/${x}">${x[0].toUpperCase()+x.slice(1)}</a>`).join('')}</div><p class="mut" style="margin-top:8px">They use your store name, phone and email from Settings.</p></div>`;
+}
+function seoPreview(id){
+  const p=DB.products.find(x=>x.id===id);if(!p)return;const m=seoMeta(p),is=seoIssues(p);
+  modal(`<h3>How Google shows this page</h3><div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff;margin:10px 0"><div style="color:#188038;font-size:12px;word-break:break-all">${esc(pLink(p))}</div><div style="color:#1a0dab;font-size:18px;margin:2px 0">${esc(m.title)}</div><div style="color:#4d5156;font-size:13px">${esc(m.desc)}</div></div>
+  ${is.length?`<p>${is.map(x=>`<span class="tag warn">${x}</span>`).join(' ')}</p>`:'<p><span class="tag ok">Page is complete</span></p>'}
+  <div class="row end" style="margin-top:10px"><button class="btn ghost" data-a="pedit" data-id="${p.id}">Edit product</button><a class="btn" target="_blank" href="${pLink(p)}">Open live page</a></div>`);
+}
+async function seoCheck(mode){
+  const out=$('#seostat');if(!out)return;out.innerHTML='<div class="mut">Checking...</div>';
+  const get=async u=>{try{const r=await fetch(u,{cache:'no-store'});return{ok:r.ok,status:r.status,t:await r.text()}}catch(e){return{ok:false,status:0,t:''}}};
+  const act=DB.products.filter(p=>p.active),R=[];
+  const add=(ok,t,d)=>R.push(`<div style="padding:5px 0;border-bottom:1px solid var(--line)">${ok?'<span class="tag ok">Working</span>':'<span class="tag bad">Not working</span>'} <b>${t}</b>${d?`<div class="mut">${d}</div>`:''}</div>`);
+  const meta=h=>{const d=new DOMParser().parseFromString(h,'text/html'),m=d.querySelector('meta[name=description]');return{title:d.title,desc:m?m.getAttribute('content'):'',ld:!!d.querySelector('script[type="application/ld+json"]')}};
+  const fixHint='Make sure vercel.json is in your main GitHub folder and seo.js is inside a folder named api. Wait one minute after uploading, then check again.';
+  let r=await get('/sitemap.xml');const okS=r.ok&&r.t.includes('<urlset');
+  add(okS,'Sitemap',okS?(r.t.match(/<loc>/g)||[]).length+' pages listed for Google':fixHint);
+  r=await get('/robots.txt');add(r.ok&&/sitemap:/i.test(r.t),'robots.txt',r.ok?'':fixHint);
+  const prods=mode==='all'?act:act.slice(0,1);
+  if(!act.length)add(false,'Product page','Add a product first.');
+  let bad=0;const q=[...prods];
+  const worker=async()=>{while(q.length){const p=q.shift(),x=await get('/p/'+p.id+'/'+slug(p.name)),m=x.ok?meta(x.t):null;
+    if(!(x.ok&&m.ld&&m.title)){bad++;if(mode!=='all')add(false,'Product page: '+esc(p.name),x.status===404?'Not found. Is the product saved to the cloud?':fixHint)}
+    else if(mode!=='all')add(true,'Product page: '+esc(p.name),'Google title: '+esc(m.title)+'<br>Description: '+esc(m.desc))}};
+  await Promise.all([worker(),worker(),worker()]);
+  if(mode==='all'&&act.length)add(bad===0,'All product pages',bad===0?act.length+' of '+act.length+' pages work':bad+' of '+act.length+' pages failed. They may not be saved to the cloud yet.');
+  const c1=DB.categories.find(c=>act.some(p=>p.cat===c.id));
+  if(c1){const x=await get('/c/'+c1.id+'/'+slug(c1.name));add(x.ok&&x.t.includes('<h1>'),'Category page: '+esc(c1.name),x.ok?'':fixHint)}
+  r=await get('/city/lagos');add(r.ok&&r.t.includes('<h1>'),'City pages',r.ok?'':fixHint);
+  r=await get('/info/privacy');add(r.ok&&r.t.includes('<h1>'),'Policy pages',r.ok?'':fixHint);
+  if(DB.settings.gscFile){r=await get('/'+DB.settings.gscFile);add(r.ok&&r.t.includes('google-site-verification'),'Search Console file',r.ok?'Ready. Go to Search Console and tap Verify.':'Not found yet. Tap Save under Google settings, wait a minute, check again.')}
+  out.innerHTML=R.join('')+'<p class="mut" style="margin-top:8px">Next: open Google Search Console, choose Sitemaps, type <b>sitemap.xml</b> and tap Submit.</p>';
+}
+
 function settings(){
   const s=DB.settings;
   return `<form data-f="settings" class="sec"><div class="two"><div><label>Store name</label><input name="name" value="${esc(s.name)}"></div><div><label>Tagline</label><input name="tagline" value="${esc(s.tagline)}"></div>
@@ -667,6 +755,10 @@ const ACT={
   checkout,
   wishlist:()=>{S.view='wishlist';renderStore()},
   myorders:()=>{closeModal();S.view='orders';renderStore();if(CLOUD)pullOrders().then(renderStore).catch(cloudErr)},
+  copylink:id=>{const p=DB.products.find(x=>x.id===id);if(p)copyText(pLink(p))},
+  copytxt:(id,el)=>copyText(el.dataset.t),
+  seoprev:id=>seoPreview(id),
+  seocheck:id=>seoCheck(id),
   paynow:id=>payOrder(id),
   adddetails:id=>detailsForm(id),
   account:()=>{if(DB.session.user){const u=DB.users.find(x=>x.id===DB.session.user);modal(`<h3>Hi, ${esc(u.name)}</h3><p class="mut">${esc(u.email)}</p><div class="row" style="margin-top:12px"><button class="btn" data-a="myorders">My orders</button><button class="btn ghost" data-a="logout">Logout</button></div>`)}else authModal('login')},
@@ -721,7 +813,8 @@ document.addEventListener('change',e=>{
   if(i==='chstate'){const sub=cartSub(),cd=couponDiscount(COUPON,sub);$('#sum').innerHTML=sumHtml(t.value,sub,cd.d)}
   if(i==='ostat'){setOrderStatus(DB.orders.find(o=>o.id===t.dataset.id),t.value);save();refreshAdmin();orderModal(t.dataset.id);toast('Status updated')}
   if(i==='opay'){DB.orders.find(o=>o.id===t.dataset.id).payStatus=t.value;save();refreshAdmin();orderModal(t.dataset.id);toast('Payment updated')}
-  if(i==='pimg'&&t.files[0])resizeImage(t.files[0],480,d=>{const show=u=>{t.form.image.value=u;$('#pprev').innerHTML=`<img src="${u}" style="height:70px;border-radius:8px">`};if(CLOUD){toast('Adding image...');Promise.race([uploadImage(d),new Promise((_,j)=>setTimeout(j,7000))]).then(show).catch(()=>{show(d);toast('Image added')})}else show(d)});
+  if(i==='pimg'&&t.files[0]){const fm=t.form;fm.dataset.busy='1';$('#pprev').innerHTML='<span class="mut">Preparing image...</span>';
+    resizeImage(t.files[0],440,d=>{delete fm.dataset.busy;fm.image.value=d;$('#pprev').innerHTML=`<img src="${d}" style="height:70px;border-radius:8px"> <span class="tag ok">Image ready. Now tap Save product</span>`},()=>{delete fm.dataset.busy;$('#pprev').innerHTML='';toast('Could not read that photo. Try another one.')})}
   if(i==='restore'&&t.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.products)throw 0;DB=d;DB.session={user:null,admin:true};save();refreshAdmin();toast('Restored')}catch(x){toast('Invalid backup file')}};r.readAsText(t.files[0])}
 });
 document.addEventListener('submit',e=>{
@@ -741,7 +834,8 @@ document.addEventListener('submit',e=>{
   if(k==='admlogin'&&CLOUD)return au.signInWithEmailAndPassword(f.email.value,f.pass.value).then(async c=>{await onAuth(c.user);if(!DB.session.admin){await au.signOut();toast('This account is not an admin')}else route()}).catch(x=>toast(authMsg(x)));
   if(k==='admlogin'){if(f.email.value===DB.settings.adminEmail&&f.pass.value===DB.settings.adminPass){DB.session.admin=true;save();renderAdmin()}else toast('Wrong admin credentials')}
   if(k==='product'){
-    const id=f.dataset.id,d={name:f.name.value,cat:f.cat.value,brand:f.brand.value,price:Number(f.price.value),discount:Number(f.discount.value)||0,stock:Number(f.stock.value)||0,sku:f.sku.value,warranty:f.warranty.value,desc:f.desc.value,specs:f.specs.value,tags:f.tags.value,image:f.image.value,active:f.active.checked,flash:f.flash.checked,featured:f.featured.checked};
+    if(f.dataset.busy)return toast('Image still loading. Wait a moment, then tap Save.');
+    const id=f.dataset.id,d={name:f.name.value,cat:f.cat.value,brand:f.brand.value,price:Number(f.price.value),discount:Number(f.discount.value)||0,stock:Number(f.stock.value)||0,sku:f.sku.value,warranty:f.warranty.value,desc:f.desc.value,specs:f.specs.value,tags:f.tags.value,seoTitle:f.seoTitle.value.trim(),seoDesc:f.seoDesc.value.trim(),image:f.image.value,active:f.active.checked,flash:f.flash.checked,featured:f.featured.checked};
     if(id)Object.assign(DB.products.find(p=>p.id===id),d);else DB.products.push({id:'p'+uid(),created:new Date().toISOString(),sold:0,...d});
     save();closeModal();refreshAdmin();toast('Product saved');
   }
@@ -751,15 +845,21 @@ document.addEventListener('submit',e=>{
     if(id)Object.assign(DB[col].find(x=>x.id===id),d);else DB[col].push({id:col[0]+uid(),...c.def,...d});
     save();closeModal();refreshAdmin();toast('Saved');
   }
+  if(k==='seoset'){const s=DB.settings;let ga=f.gaId.value.trim().toUpperCase(),gf=f.gscFile.value.trim();
+    if(ga&&!/^G-[A-Z0-9]{4,}$/.test(ga))return toast('Analytics ID looks like G-ABC123XYZ');
+    if(gf){const m=gf.match(/google[a-z0-9]+\.html/i);if(!m)return toast('Paste the file name Google gave you, like google1234abcd.html');gf=m[0].toLowerCase()}
+    s.gaId=ga;s.gscFile=gf;s.seoTitle=f.seoTitle.value.trim();s.seoDesc=f.seoDesc.value.trim();save();applySeo();refreshAdmin();toast('Google settings saved')}
   if(k==='settings'){const s=DB.settings;['name','tagline','phone','whatsapp','email','address','bank',...(CLOUD?[]:['adminEmail','adminPass'])].forEach(x=>s[x]=f[x].value);
     s.vat=Number(f.vat.value)||0;s.lowStock=Number(f.lowStock.value)||0;['card','transfer','autoApprove'].forEach(x=>s[x]=f[x].checked);save();toast('Settings saved')}
 });
 window.addEventListener('hashchange',route);
 setInterval(()=>{tick()},1000);
 setInterval(()=>{if(location.hash!=='#admin'&&S.view==='home'&&!S.cat&&!S.q&&$('#hero')&&!$('#modal').innerHTML&&!$('#drawer').innerHTML){S.banner++;const y=window.scrollY;renderStore();window.scrollTo(0,y)}},6000);
-/* Google Analytics 4: paste your Measurement ID (starts with G-) between the quotes */
+/* Google Analytics 4: set from Admin > SEO & Pages. GA_ID is only a fallback. */
 const GA_ID='';
-if(GA_ID){const g=document.createElement('script');g.async=true;g.src='https://www.googletagmanager.com/gtag/js?id='+GA_ID;document.head.appendChild(g);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config',GA_ID)}
+let GA_ON='';
+function initGA(){const id=String((DB.settings&&DB.settings.gaId)||GA_ID||'').trim();if(!id||GA_ON===id||!/^G-[A-Z0-9]{4,}$/i.test(id)||(DB.session&&DB.session.admin))return;GA_ON=id;const g=document.createElement('script');g.async=true;g.src='https://www.googletagmanager.com/gtag/js?id='+id;document.head.appendChild(g);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config',id)}
+function applySeo(){const s=DB.settings||{};if(s.seoTitle)document.title=s.seoTitle;const m=document.querySelector('meta[name=description]');if(m&&s.seoDesc)m.setAttribute('content',s.seoDesc)}
 if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 boot();
 </script>

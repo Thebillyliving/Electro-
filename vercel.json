@@ -1,5 +1,4 @@
 {
-  "cleanUrls": true,
   "rewrites": [
     { "source": "/p/:id/:slug", "destination": "/api/seo?t=p&id=:id" },
     { "source": "/p/:id", "destination": "/api/seo?t=p&id=:id" },
@@ -9,7 +8,8 @@
     { "source": "/info/:id", "destination": "/api/seo?t=info&id=:id" },
     { "source": "/img/:id", "destination": "/api/seo?t=img&id=:id" },
     { "source": "/sitemap.xml", "destination": "/api/seo?t=sitemap" },
-    { "source": "/robots.txt", "destination": "/api/seo?t=robots" }
+    { "source": "/robots.txt", "destination": "/api/seo?t=robots" },
+    { "source": "/:file", "destination": "/api/seo?t=file&id=:file" }
   ],
   "headers": [
     { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
