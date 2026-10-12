@@ -154,7 +154,7 @@ function seed(){
 }
 /* ===== CLOUD CONFIG: paste your keys here to switch from demo mode to Firebase + Paystack ===== */
 const FIREBASE_CONFIG={apiKey:"AIzaSyDe-2OdWJj2lMrOENFxaedGdigAmdtq0fc",authDomain:"electroap.firebaseapp.com",projectId:"electroap",storageBucket:"electroap.firebasestorage.app",messagingSenderId:"992912306377",appId:"1:992912306377:web:eb0c21b3d4e95515735d18"}; /* e.g. {apiKey:"...",authDomain:"...",projectId:"...",storageBucket:"...",messagingSenderId:"...",appId:"..."} */
-const PAYSTACK_KEY='';      /* pk_test_xxx or pk_live_xxx (public key only) */
+const PAYSTACK_KEY='pk_live_4e3f3c7275604676b75064574ba46896bac20e9f';      /* pk_test_xxx or pk_live_xxx (public key only) */
 const CLOUD=!!FIREBASE_CONFIG;
 function blank(){const d=seed();['products','categories','orders','users','coupons','banners','reviews','shipping'].forEach(k=>d[k]=[]);d.settings.adminEmail='';d.settings.adminPass='';try{Object.assign(d,JSON.parse(localStorage.getItem(KEY+'_local'))||{})}catch(e){}d.session={user:null,admin:false};return d}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.products)return d}catch(e){}return seed()}
@@ -233,10 +233,20 @@ async function boot(){
     au.onAuthStateChanged(async u=>{await onAuth(u);route()});
   }catch(e){document.body.innerHTML='<div class="empty">Could not connect to Firebase: '+esc(e.message)+'</div>'}
 }
+const PAIDK='electro_paid';
+const paidLocal=()=>{try{return JSON.parse(localStorage.getItem(PAIDK)||'[]')}catch(e){return[]}};
+function markPaidLocal(id){try{localStorage.setItem(PAIDK,JSON.stringify([id,...paidLocal().filter(x=>x!==id)].slice(0,30)))}catch(e){}}
+function confirmPay(ref,id,n){n=n||0;
+  fetch('/api/paystack?reference='+encodeURIComponent(ref),{cache:'no-store'}).then(r=>r.json()).then(j=>{
+    if(j&&j.ok&&(j.status==='paid'||j.status==='already')){pullOrders().then(()=>{if(S.view==='orders')renderStore()}).catch(()=>{})}
+    else if(n<2&&!(j&&j.status==='not_configured'))setTimeout(()=>confirmPay(ref,id,n+1),8000)}).catch(()=>{if(n<2)setTimeout(()=>confirmPay(ref,id,n+1),8000)});
+}
 async function payWithPaystack(o){
   try{if(!window.PaystackPop)await loadScript('https://js.paystack.co/v1/inline.js')}catch(e){return toast('Could not load Paystack')}
-  PaystackPop.setup({key:PAYSTACK_KEY,email:o.email,amount:Math.round(o.total*100),currency:'NGN',ref:o.id+'-'+Date.now(),metadata:{orderId:o.id},
-    callback:function(r){if(!CLOUD){o.payStatus='Paid';save()}toast('Payment received. Thank you!');detailsForm(o.id);if(CLOUD&&S.view==='orders')setTimeout(()=>pullOrders().then(renderStore),4000)},
+  const em=o.email||(au&&au.currentUser&&au.currentUser.email)||'';
+  if(!em)return toast('Add an email to your account first');
+  PaystackPop.setup({key:PAYSTACK_KEY,email:em,amount:Math.round(o.total*100),currency:'NGN',ref:o.id+'-'+Date.now(),metadata:{orderId:o.id},
+    callback:function(r){markPaidLocal(o.id);if(!CLOUD){o.payStatus='Paid';save()}toast('Payment received. Thank you!');detailsForm(o.id);if(CLOUD)confirmPay(r.reference,o.id)},
     onClose:function(){toast('Payment not completed. You can pay later from My orders.')}}).openIframe();
 }
 function toast(m){const t=$('#toast'),d=document.createElement('div');d.textContent=m;t.appendChild(d);setTimeout(()=>d.remove(),2600)}
@@ -395,7 +405,7 @@ function renderStore(){
       <div class="mut">${dstr(o.date)} · ${o.items.length} item(s) · ${fmt(o.total)} · ${stateTag(o.payStatus)}</div>
       <div class="tl">${STATUSES.map((s,i)=>`<i class="${i<=idx?'on':''}"></i>`).join('')}</div>
       <div class="mut">${o.items.map(i=>esc(i.name)+' ×'+i.qty).join(', ')}</div>
-      ${o.quotePending&&o.status!=='Cancelled'?'<div style="margin-top:8px"><span class="tag warn">Delivery price being confirmed</span></div>':''}${!o.quotePending&&o.payStatus==='Pending'&&o.status!=='Cancelled'?`<div style="margin-top:8px"><div class="mut">Delivery ${fmt(o.shipping)} · <b>Total to pay ${fmt(o.total)}</b></div><button class="btn sm green" style="margin-right:6px" data-a="paynow" data-id="${o.id}">Pay now</button></div>`:''}${o.detailsPending&&o.status!=='Cancelled'?`<button class="btn sm" style="margin-top:8px;margin-right:6px" data-a="adddetails" data-id="${o.id}">Add delivery address</button>`:''}${o.status==='Pending'?`<button class="btn sm red" style="margin-top:8px" data-a="cancelmine" data-id="${o.id}">Cancel order</button>`:''}</div>`}).join(''):'<div class="empty">No orders yet</div>'}</div>`;
+      ${o.quotePending&&o.status!=='Cancelled'?'<div style="margin-top:8px"><span class="tag warn">Delivery price being confirmed</span></div>':''}${!o.quotePending&&o.payStatus==='Pending'&&o.status!=='Cancelled'?(paidLocal().includes(o.id)?'<div style="margin-top:8px"><span class="tag warn">Payment received, confirming</span></div>':`<div style="margin-top:8px"><div class="mut">Delivery ${fmt(o.shipping)} · <b>Total to pay ${fmt(o.total)}</b></div><button class="btn sm green" style="margin-right:6px" data-a="paynow" data-id="${o.id}">Pay now</button></div>`):''}${o.detailsPending&&o.status!=='Cancelled'?`<button class="btn sm" style="margin-top:8px;margin-right:6px" data-a="adddetails" data-id="${o.id}">Add delivery address</button>`:''}${o.status==='Pending'?`<button class="btn sm red" style="margin-top:8px" data-a="cancelmine" data-id="${o.id}">Cancel order</button>`:''}</div>`}).join(''):'<div class="empty">No orders yet</div>'}</div>`;
   }
   const s=DB.settings;
   $('#app').innerHTML=header()+`<div class="wrap">${main}</div>
@@ -591,6 +601,7 @@ function orderModal(id){
   ${o.status!=='Cancelled'&&o.payStatus!=='Paid'?`<form data-f="quote" data-id="${o.id}" class="row" style="margin:8px 0;align-items:flex-end"><div style="flex:1"><label>Delivery fee ₦ ${o.quotePending?'(waiting for your quote)':''}</label><input name="fee" type="number" min="0" step="any" required value="${o.quotePending?'':o.shipping}"></div><button class="btn sm green">${o.quotePending?'Send delivery price':'Update delivery price'}</button></form>`:''}
   <table style="margin:10px 0">${o.items.map(i=>`<tr><td>${esc(i.name)}</td><td>×${i.qty}</td><td>${fmt(i.price*i.qty)}</td></tr>`).join('')}
   <tr><td colspan="2">Subtotal</td><td>${fmt(o.subtotal)}</td></tr>${o.discount?`<tr><td colspan="2">Discount ${esc(o.coupon)}</td><td>-${fmt(o.discount)}</td></tr>`:''}<tr><td colspan="2">Delivery</td><td>${o.quotePending?'Not set':fmt(o.shipping)}</td></tr><tr><td colspan="2">VAT</td><td>${fmt(o.vat)}</td></tr><tr><td colspan="2"><b>Total</b></td><td><b>${fmt(o.total)}</b></td></tr></table>
+  ${o.payRef?`<div class="mut">Paystack ref: ${esc(o.payRef)}${o.paidAt?' · '+dstr(o.paidAt):''}</div>`:''}${o.payNote?`<div style="margin:6px 0"><span class="tag warn">${esc(o.payNote)}</span></div>`:''}
   <div class="two"><div><label>Order status</label><select data-i="ostat" data-id="${o.id}">${[...STATUSES,'Cancelled'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}</select></div>
   <div><label>Payment (${esc(o.payment)})</label><select data-i="opay" data-id="${o.id}">${['Pending','Paid','Failed','Refunded'].map(s=>`<option ${s===o.payStatus?'selected':''}>${s}</option>`).join('')}</select></div></div>
   <div class="row end"><a class="btn ghost" target="_blank" href="https://wa.me/${o.phone.replace(/\D/g,'').replace(/^0/,'234')}">WhatsApp customer</a>${o.status==='Delivered'?`<a class="btn green" target="_blank" href="https://wa.me/${o.phone.replace(/\D/g,'').replace(/^0/,'234')}?text=${encodeURIComponent('Hi '+o.name+', thank you for buying from '+DB.settings.name+'! Please rate your purchase, it takes 30 seconds and helps others: '+o.items.map(i=>{const p=DB.products.find(x=>x.id===i.id);return p?pLink(p):''}).filter(Boolean).join(' '))}">Ask for review</a>`:''}<button class="btn dark" data-a="invoice" data-id="${o.id}">Print invoice</button></div>`,true);
@@ -829,8 +840,8 @@ document.addEventListener('submit',e=>{
     DB.users.push(u);DB.session.user=u.id;save();closeModal();renderStore();toast('Account created')}
   if(k==='order')placeOrder(f);
   if(k==='review'){if(CLOUD&&!DB.session.user)return toast('Please login to leave a review');DB.reviews.push({id:'r'+uid(),pid:f.dataset.id,name:f.name.value,rating:Number(f.rating.value),text:f.text.value,date:new Date().toISOString(),approved:DB.settings.autoApprove});save();toast(DB.settings.autoApprove?'Review posted':'Review submitted for approval');viewProduct(f.dataset.id)}
-  if(k==='details'){const o=DB.orders.find(x=>x.id===f.dataset.id);if(!o)return;o.address=f.address.value;o.landmark=f.landmark.value;o.city=f.city.value;o.phone2=f.phone2.value;o.notes=f.notes.value;o.detailsPending=false;save();closeModal();updateBadges();modal(`<h3>✅ All set</h3><p>Order <b>${o.id}</b> is received. We will call <b>${esc(o.phone)}</b> about delivery.</p><div class="row end"><button class="btn" data-a="myorders">View my orders</button></div>`)}
-  if(k==='quote'){const o=DB.orders.find(x=>x.id===f.dataset.id),fee=Number(f.fee.value)||0;o.shipping=fee;o.total=o.subtotal-o.discount+o.vat+fee;o.quotePending=false;save();refreshAdmin();orderModal(o.id);toast('Delivery price saved. Customer can now pay.')}
+  if(k==='details'){const o=DB.orders.find(x=>x.id===f.dataset.id);if(!o)return;const dd={address:f.address.value,landmark:f.landmark.value,city:f.city.value,phone2:f.phone2.value,notes:f.notes.value,detailsPending:false};Object.assign(o,dd);if(CLOUD){SNAP.orders=SNAP.orders||{};SNAP.orders[o.id]=JSON.stringify(o);track(fs.collection('orders').doc(o.id).update(dd),()=>{o.detailsPending=true;SNAP.orders[o.id]=JSON.stringify(o)})}else save();closeModal();updateBadges();modal(`<h3>✅ All set</h3><p>Order <b>${o.id}</b> is received. We will call <b>${esc(o.phone)}</b> about delivery.</p><div class="row end"><button class="btn" data-a="myorders">View my orders</button></div>`)}
+  if(k==='quote'){const o=DB.orders.find(x=>x.id===f.dataset.id),fee=Number(f.fee.value)||0;o.shipping=fee;o.shipAdj=true;o.total=o.subtotal-o.discount+o.vat+fee;o.quotePending=false;save();refreshAdmin();orderModal(o.id);toast('Delivery price saved. Customer can now pay.')}
   if(k==='admlogin'&&CLOUD)return au.signInWithEmailAndPassword(f.email.value,f.pass.value).then(async c=>{await onAuth(c.user);if(!DB.session.admin){await au.signOut();toast('This account is not an admin')}else route()}).catch(x=>toast(authMsg(x)));
   if(k==='admlogin'){if(f.email.value===DB.settings.adminEmail&&f.pass.value===DB.settings.adminPass){DB.session.admin=true;save();renderAdmin()}else toast('Wrong admin credentials')}
   if(k==='product'){
