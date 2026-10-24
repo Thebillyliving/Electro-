@@ -81,7 +81,7 @@ th{font-size:11px;text-transform:uppercase;color:var(--mut);white-space:nowrap}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:12px}
 .kpi{background:#fff;border-radius:12px;padding:14px}.kpi .v{font-size:22px;font-weight:800;margin-top:4px}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:900px){.adm{flex-direction:column}.side{width:100%;display:flex;overflow-x:auto;padding:8px}.side .logo{display:none}.side a{white-space:nowrap;margin:0 2px}.cols{grid-template-columns:1fr}}
+@media(max-width:900px){.adm{flex-direction:column}.side{width:100%;display:flex;overflow-x:auto;padding:8px;position:sticky;top:0;z-index:40}.side .logo{display:none}.side a{white-space:nowrap;margin:0 2px}.cols{grid-template-columns:1fr}}
 .pcard{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.pcard .thumb{width:64px;height:64px;flex-shrink:0}
 .empty{text-align:center;color:var(--mut);padding:30px}
 .tl{display:flex;gap:4px;margin:8px 0}.tl i{flex:1;height:5px;border-radius:3px;background:#e5e7eb}.tl i.on{background:var(--ok)}
@@ -972,8 +972,10 @@ function renderAdmin(){
     <button class="btn full" style="margin-top:12px">Login</button></form><p class="mut" style="text-align:center;margin-top:10px"><a href="#" data-a="tostore">← Back to store</a></p></div>`;return;
   }
   const pend=DB.orders.filter(o=>o.status==='Pending').length;
+  const _sd=document.querySelector('.side'),_sl=_sd?_sd.scrollLeft:0;
   $('#app').innerHTML=`<div class="adm"><div class="side"><div class="logo"><i style="color:#4ade80">⚡</i>${esc(DB.settings.name.slice(0,-1))}<b>${esc(DB.settings.name.slice(-1))}</b> <span style="font-size:12px;opacity:.7">ADMIN</span></div>${TABS.map(t=>`<a class="${A.tab===t[0]?'on':''}" data-a="tab" data-id="${t[0]}">${t[1]}${t[0]==='orders'&&pend?` (${pend})`:''}</a>`).join('')}</div>
   <div class="main"><div class="bar"><h2>${TABS.find(t=>t[0]===A.tab)[1]}</h2><div class="row"><button class="btn ghost sm" data-a="tostore">View store</button><button class="btn dark sm" data-a="admlogout">Logout</button></div></div><div id="adm">${adminTab()}</div></div></div>`;
+  const _sn=document.querySelector('.side');if(_sn){_sn.scrollLeft=_sl;const on=_sn.querySelector('a.on');if(on&&_sn.scrollWidth>_sn.clientWidth){const t=on.offsetLeft-(_sn.clientWidth-on.offsetWidth)/2;_sn.scrollLeft=Math.max(0,t)}}
 }
 function refreshAdmin(){const y=window.scrollY;renderAdmin();window.scrollTo(0,y)}
 function adminTab(){return ({dashboard,products,seo:seoTab,categories,orders,pickups,installments,cashback:cashbackTab,customers,inventory,coupons,banners,reviews,shipping,payments,analytics,insights,settings})[A.tab]()}
