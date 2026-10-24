@@ -9,6 +9,7 @@
     { "source": "/img/:id", "destination": "/api/seo?t=img&id=:id" },
     { "source": "/sitemap.xml", "destination": "/api/seo?t=sitemap" },
     { "source": "/robots.txt", "destination": "/api/seo?t=robots" },
+    { "source": "/feed.xml", "destination": "/api/seo?t=feed" },
     { "source": "/:file", "destination": "/api/seo?t=file&id=:file" }
   ],
   "headers": [
