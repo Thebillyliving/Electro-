@@ -1128,6 +1128,7 @@ function seoTab(){
   <p class="mut">In Search Console choose "URL prefix", then "HTML file". Copy the file name it shows, paste it here, tap Save, then tap Verify in Search Console. No file upload needed.</p>
   <label>Home page title for Google</label><input name="seoTitle" maxlength="70" placeholder="Rocero | Buy genuine electronics and machines in Nigeria" value="${esc(s.seoTitle||'')}">
   <label>Home page description for Google</label><textarea name="seoDesc" rows="2" maxlength="158">${esc(s.seoDesc||'')}</textarea>
+  <label>About us (Google reads this on your About page)</label><textarea name="aboutText" rows="7" placeholder="Who you are, what you sell, brands you stock, how long you have traded, where you are, delivery coverage, warranty, why customers trust you. Leave a blank line between paragraphs.">${esc(s.aboutText||'')}</textarea>
   <div class="row end"><button class="btn">Save Google settings</button></div></form>
   <div class="sec"><h3>Product pages (${act.length})</h3>${act.length?act.map(p=>{const is=seoIssues(p);return `<div class="pcard"><img class="thumb" loading="lazy" src="${img(p)}"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>
   <div class="mut" style="word-break:break-all">/p/${esc(p.id)}/${slug(p.name)}</div>
@@ -1332,7 +1333,7 @@ document.addEventListener('submit',e=>{
   if(k==='seoset'){const s=DB.settings;let ga=f.gaId.value.trim().toUpperCase(),gf=f.gscFile.value.trim();
     if(ga&&!/^G-[A-Z0-9]{4,}$/.test(ga))return toast('Analytics ID looks like G-ABC123XYZ');
     if(gf){const m=gf.match(/google[a-z0-9]+\.html/i);if(!m)return toast('Paste the file name Google gave you, like google1234abcd.html');gf=m[0].toLowerCase()}
-    s.gaId=ga;s.gscFile=gf;s.seoTitle=f.seoTitle.value.trim();s.seoDesc=f.seoDesc.value.trim();save();applySeo();refreshAdmin();toast('Google settings saved')}
+    s.gaId=ga;s.gscFile=gf;s.seoTitle=f.seoTitle.value.trim();s.seoDesc=f.seoDesc.value.trim();s.aboutText=f.aboutText.value.trim();save();applySeo();refreshAdmin();toast('Google settings saved')}
   if(k==='settings'){const s=DB.settings;['name','tagline','phone','whatsapp','email','address','bank',...(CLOUD?[]:['adminEmail','adminPass'])].forEach(x=>s[x]=f[x].value);
     s.pickupAddr=f.pickupAddr.value.trim()||pickAddr();s.delHrs=Number(f.delHrs.value)||72;s.lateCb=f.lateCb.value===''?500:Math.max(0,Number(f.lateCb.value)||0);s.vat=Number(f.vat.value)||0;s.lowStock=Number(f.lowStock.value)||0;['card','transfer','autoApprove'].forEach(x=>s[x]=f[x].checked);save();toast('Settings saved')}
 });
