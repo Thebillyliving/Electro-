@@ -1,4 +1,4 @@
-// ELECTRO SEO pages: runs on Vercel, reads your public Firestore data and returns
+// Rocero SEO pages: runs on Vercel, reads your public Firestore data and returns
 // crawlable HTML for products, categories, cities and policies, plus sitemap and robots.
 const PROJECT = 'electroap';
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
@@ -48,7 +48,7 @@ const pUrl = (p, o) => `${o}/p/${p.id}/${slugify(p.name)}`;
 const CSS = `:root{--acc:#ff6a00;--green:#16a34a}*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#fafaf7;color:#141414;line-height:1.5}a{color:inherit}.top{background:#141414;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}.top b{font-size:20px}.top b span{color:var(--acc)}.top a{text-decoration:none}.wrap{max-width:900px;margin:0 auto;padding:16px}h1{font-size:24px;margin:8px 0}h2{font-size:18px;margin:18px 0 8px}.mut{color:#6b7280;font-size:13px}.price{font-size:26px;font-weight:700;color:var(--acc);margin:8px 0}.old{color:#9ca3af;text-decoration:line-through;font-size:15px;margin-left:8px;font-weight:400}.btn{display:inline-block;background:var(--acc);color:#fff;padding:12px 20px;border-radius:10px;font-weight:600;text-decoration:none;margin:6px 6px 6px 0}.btn.g{background:var(--green)}.btn.d{background:#141414}.pd{display:grid;grid-template-columns:1fr 1fr;gap:20px}.pd img{width:100%;border-radius:12px;background:#fff}@media(max-width:640px){.pd{grid-template-columns:1fr}}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}.card{background:#fff;border:1px solid #e8e8e3;border-radius:12px;padding:10px;text-decoration:none;display:block}.card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}.card .n{font-size:13px;margin:6px 0 2px}.card .p{color:var(--acc);font-weight:700}table{width:100%;border-collapse:collapse}td{padding:6px 8px;border-bottom:1px solid #e8e8e3}.foot{background:#141414;color:#cbd5e1;padding:20px 16px;margin-top:30px;font-size:13px;text-align:center}.foot a{color:#86efac;margin:0 6px}.crumb{font-size:13px;color:#6b7280}`;
 
 function shell(o, s, { title, desc, canonical, image, body, ld, noindex }) {
-  const name = s.name || 'ELECTRO';
+  const name = s.name || 'Rocero';
   const gaId = /^G-[A-Z0-9]{4,}$/i.test(s.gaId || '') ? s.gaId : '';
   const ga = gaId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${gaId}')</script>` : '';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -82,8 +82,8 @@ function productPage(o, s, p, cats, prods, reviews) {
   const desc = (p.seoDesc || `${p.name} for ${money(price)} in Nigeria. ${(p.desc || '').slice(0, 110)} Warranty: ${p.warranty || 'N/A'}. Delivery nationwide.`).slice(0, 158);
   const ld = [{
     '@context': 'https://schema.org', '@type': 'Product', name: p.name, image: [imgUrl(p, o)],
-    description: p.desc || p.name, sku: p.sku || p.id, brand: { '@type': 'Brand', name: p.brand || 'ELECTRO' }, category: c.name,
-    offers: { '@type': 'Offer', url, priceCurrency: 'NGN', price: String(price), availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', itemCondition: 'https://schema.org/NewCondition', seller: { '@type': 'Organization', name: s.name || 'ELECTRO' } },
+    description: p.desc || p.name, sku: p.sku || p.id, brand: { '@type': 'Brand', name: p.brand || 'Rocero' }, category: c.name,
+    offers: { '@type': 'Offer', url, priceCurrency: 'NGN', price: String(price), availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', itemCondition: 'https://schema.org/NewCondition', seller: { '@type': 'Organization', name: s.name || 'Rocero' } },
     ...(rs ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: rs.avg.toFixed(1), reviewCount: rs.n }, review: rs.list.slice(0, 5).map(r => ({ '@type': 'Review', author: { '@type': 'Person', name: r.name }, reviewRating: { '@type': 'Rating', ratingValue: r.rating }, reviewBody: r.text })) } : {})
   }, {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
@@ -100,13 +100,15 @@ function productPage(o, s, p, cats, prods, reviews) {
 ${rs ? `<div class="mut">★ ${rs.avg.toFixed(1)} (${rs.n} reviews)</div>` : ''}
 <div class="price">${money(price)}${p.discount ? `<span class="old">${money(p.price)}</span>` : ''}</div>
 <p>${p.stock > 0 ? 'In stock' : 'Out of stock'} · Warranty: ${esc(p.warranty || 'N/A')}</p>
+<p>🚚 Delivery within 24 hours in Lagos. Free store pickup in Bariga, Lagos.</p>
+${p.instOn ? `<p>💳 Installments available: ${esc(p.instDeposit || 50)}% deposit, the rest in ${esc(p.instMonths || 3)} monthly payments.</p>` : ''}
 <a class="btn" href="/#p=${esc(p.id)}">Buy now</a><a class="btn g" href="${wa}">WhatsApp us</a></div></div>
 <h2>Description</h2><p>${esc(p.desc || '')}</p>
 ${specs.length ? `<h2>Specifications</h2><table>${specs.map(x => `<tr><td><b>${esc(x[0])}</b></td><td>${esc(x[1])}</td></tr>`).join('')}</table>` : ''}
 <h2>Delivery and payment</h2><p>Pay securely online, then add your delivery address. Delivery to all Nigerian states, fee shown at checkout. <a href="/info/delivery">Delivery info</a> · <a href="/info/returns">Returns</a></p>
 ${rs ? `<h2>Customer reviews</h2>${rs.list.slice(0, 5).map(r => `<p><b>${esc(r.name)}</b> ★${esc(r.rating)}<br>${esc(r.text)}</p>`).join('')}` : ''}
 ${rel.length ? `<h2>Related products</h2><div class="grid">${rel.map(x => card(x, o)).join('')}</div>` : ''}`;
-  return shell(o, s, { title: (p.seoTitle || `${p.name} price in Nigeria | ${s.name || 'ELECTRO'}`).slice(0, 70), desc, canonical: url, image: imgUrl(p, o), body, ld });
+  return shell(o, s, { title: (p.seoTitle || `${p.name} price in Nigeria | ${s.name || 'Rocero'}`).slice(0, 70), desc, canonical: url, image: imgUrl(p, o), body, ld });
 }
 
 function categoryPage(o, s, c, prods, city) {
@@ -116,21 +118,21 @@ function categoryPage(o, s, c, prods, city) {
   const ld = { '@context': 'https://schema.org', '@type': 'CollectionPage', name: c.name + where, url, mainEntity: { '@type': 'ItemList', itemListElement: list.slice(0, 30).map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: pUrl(p, o), name: p.name })) } };
   const body = `<h1>Buy ${esc(c.name)}${where}</h1><p class="mut">${list.length} products · genuine, warrantied, delivered nationwide</p>
 <div class="grid" style="margin-top:12px">${list.map(p => card(p, o)).join('') || '<p>No products yet.</p>'}</div>`;
-  return shell(o, s, { title: `Buy ${c.name}${where} | ${s.name || 'ELECTRO'}`, desc: `Shop ${c.name}${where}. Genuine products, warranty, secure online payment and nationwide delivery from ${s.name || 'ELECTRO'}.`, canonical: url, body, ld });
+  return shell(o, s, { title: `Buy ${c.name}${where} | ${s.name || 'Rocero'}`, desc: `Shop ${c.name}${where}. Genuine products, warranty, secure online payment and nationwide delivery from ${s.name || 'Rocero'}.`, canonical: url, body, ld });
 }
 
 function cityPage(o, s, city, cats, prods) {
   const url = `${o}/city/${slugify(city)}`;
   const body = `<h1>Electronics and machines in ${esc(city)}</h1>
-<p>${esc(s.name || 'ELECTRO')} delivers genuine electronics, appliances and machines to ${esc(city)} and all states in Nigeria. Pay securely online, add your address, and we ship with a tracked delivery.</p>
+<p>${esc(s.name || 'Rocero')} delivers genuine electronics, appliances and machines to ${esc(city)} and all states in Nigeria. Pay securely online, add your address, and we ship with a tracked delivery.</p>
 ${cats.map(c => { const l = prods.filter(p => p.cat === c.id).slice(0, 4); return l.length ? `<h2>${esc(c.name)} in ${esc(city)}</h2><div class="grid">${l.map(p => card(p, o)).join('')}</div>` : ''; }).join('')}
 <h2>Why buy from us</h2><p>Brand new products, warranty on every item, secure Paystack payment and delivery to ${esc(city)}. <a href="/info/delivery">Delivery info</a></p>`;
-  const ld = { '@context': 'https://schema.org', '@type': 'Store', name: s.name || 'ELECTRO', url: o, telephone: s.phone || undefined, areaServed: { '@type': 'City', name: city } };
-  return shell(o, s, { title: `Buy electronics and machines in ${city} | ${s.name || 'ELECTRO'}`, desc: `Order electronics, appliances and machines online and get delivery to ${city}. Genuine products, warranty, secure payment.`, canonical: url, body, ld });
+  const ld = { '@context': 'https://schema.org', '@type': 'Store', name: s.name || 'Rocero', url: o, telephone: s.phone || undefined, areaServed: { '@type': 'City', name: city } };
+  return shell(o, s, { title: `Buy electronics and machines in ${city} | ${s.name || 'Rocero'}`, desc: `Order electronics, appliances and machines online and get delivery to ${city}. Genuine products, warranty, secure payment.`, canonical: url, body, ld });
 }
 
 function infoPage(o, s, id) {
-  const n = s.name || 'ELECTRO', em = s.email || '', ph = s.phone || '';
+  const n = s.name || 'Rocero', em = s.email || '', ph = s.phone || '';
   const P = {
     privacy: ['Privacy Policy', `<p>${esc(n)} collects the details you give us (name, phone, email, delivery address) only to process and deliver your orders and to contact you about them. Payments are handled by Paystack; we never see or store your card number. We do not sell your data. We share your name, phone and address with delivery partners only to deliver your order. You can ask us to delete your account and data at any time by contacting ${esc(em)}.</p>`],
     terms: ['Terms of Service', `<p>By using ${esc(n)} you agree to these terms. Prices are in Naira and may change without notice. An order is confirmed after payment is received. Delivery fees are shown at checkout by state. We may cancel an order if a product is out of stock and will refund any payment in full. Product images are for illustration. Warranty terms are stated on each product page. Contact: ${esc(ph)} ${esc(em)}.</p>`],
@@ -140,6 +142,15 @@ function infoPage(o, s, id) {
   };
   const x = P[id]; if (!x) return null;
   return shell(o, s, { title: `${x[0]} | ${n}`, desc: `${x[0]} for ${n}, an online electronics store in Nigeria.`, canonical: `${o}/info/${id}`, body: `<h1>${esc(x[0])}</h1>${x[1]}` });
+}
+
+function feed(o, s, cats, prods) {
+  const cdata = x => String(x == null ? '' : x).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  const items = prods.filter(p => Number(p.price) > 0).map(p => {
+    const c = cats.find(x => x.id === p.cat) || { name: 'Electronics' }, price = fprice(p);
+    return `<item><g:id>${esc(p.id)}</g:id><title>${esc(cdata(p.name).slice(0, 150))}</title><description>${esc(cdata(p.desc || p.name).slice(0, 4900))}</description><link>${esc(pUrl(p, o))}</link><g:image_link>${esc(imgUrl(p, o))}</g:image_link><g:availability>${p.stock > 0 ? 'in_stock' : 'out_of_stock'}</g:availability><g:price>${Number(p.price).toFixed(2)} NGN</g:price>${Number(p.discount) > 0 ? `<g:sale_price>${price.toFixed(2)} NGN</g:sale_price>` : ''}<g:brand>${esc(p.brand || s.name || 'Rocero')}</g:brand><g:condition>new</g:condition><g:identifier_exists>no</g:identifier_exists><g:mpn>${esc(p.sku || p.id)}</g:mpn><g:product_type>${esc(c.name)}</g:product_type></item>`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>${esc(s.name || 'Rocero')}</title><link>${esc(o)}</link><description>${esc(s.tagline || 'Products')}</description>${items}</channel></rss>`;
 }
 
 function sitemap(o, cats, prods) {
@@ -170,6 +181,7 @@ module.exports = async (req, res) => {
     if (t === 'info') { const s = await settings(); const h = infoPage(o, s, id); return h ? html(200, h, 's-maxage=3600') : html(404, shell(o, s, { title: 'Not found', desc: 'Not found', canonical: o, body: '<h1>Page not found</h1><a class="btn" href="/">Shop</a>', noindex: true }), 'no-store'); }
     const [s, cats, prodsAll] = await Promise.all([settings(), list('categories'), list('products')]);
     const prods = prodsAll.filter(p => p.active !== false);
+    if (t === 'feed') { const s = await settings(); res.setHeader('Content-Type', 'application/xml; charset=utf-8'); res.setHeader('Cache-Control', 's-maxage=1800'); return res.end(feed(o, s, cats, prods)); }
     if (t === 'sitemap') { res.setHeader('Content-Type', 'application/xml'); res.setHeader('Cache-Control', 's-maxage=1800'); return res.end(sitemap(o, cats, prods)); }
     if (t === 'p') {
       const p = prodsAll.find(x => x.id === id);
