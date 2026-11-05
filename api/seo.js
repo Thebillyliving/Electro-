@@ -76,7 +76,7 @@ function reviewStats(revs) {
 }
 
 function productPage(o, s, p, cats, prods, reviews) {
-  const c = cats.find(x => x.id === p.cat) || { name: 'Electronics' };
+  const c = cats.find(x => x.id === p.cat) || { name: 'Products' };
   const rs = reviewStats(reviews.filter(r => r.pid === p.id));
   const url = pUrl(p, o), price = fprice(p);
   const desc = (p.seoDesc || `${p.name} for ${money(price)} in Nigeria. ${(p.desc || '').slice(0, 110)} Warranty: ${p.warranty || 'N/A'}. Delivery nationwide.`).slice(0, 158);
@@ -123,12 +123,12 @@ function categoryPage(o, s, c, prods, city) {
 
 function cityPage(o, s, city, cats, prods) {
   const url = `${o}/city/${slugify(city)}`;
-  const body = `<h1>Electronics and machines in ${esc(city)}</h1>
-<p>${esc(s.name || 'Rocero')} delivers genuine electronics, appliances and machines to ${esc(city)} and all states in Nigeria. Pay securely online, add your address, and we ship with a tracked delivery.</p>
+  const body = `<h1>Shop online in ${esc(city)}</h1>
+<p>${esc(s.name || 'Rocero')} delivers genuine products to ${esc(city)} and all states in Nigeria. Pay securely online, add your address, and we ship with a tracked delivery.</p>
 ${cats.map(c => { const l = prods.filter(p => p.cat === c.id).slice(0, 4); return l.length ? `<h2>${esc(c.name)} in ${esc(city)}</h2><div class="grid">${l.map(p => card(p, o)).join('')}</div>` : ''; }).join('')}
 <h2>Why buy from us</h2><p>Brand new products, warranty on every item, secure Paystack payment and delivery to ${esc(city)}. <a href="/info/delivery">Delivery info</a></p>`;
   const ld = { '@context': 'https://schema.org', '@type': 'Store', name: s.name || 'Rocero', url: o, telephone: s.phone || undefined, areaServed: { '@type': 'City', name: city } };
-  return shell(o, s, { title: `Buy electronics and machines in ${city} | ${s.name || 'Rocero'}`, desc: `Order electronics, appliances and machines online and get delivery to ${city}. Genuine products, warranty, secure payment.`, canonical: url, body, ld });
+  return shell(o, s, { title: `Shop online in ${city} | ${s.name || 'Rocero'}`, desc: `Order genuine products online and get delivery to ${city}. Warranty, secure payment, 24-hour delivery in Lagos.`, canonical: url, body, ld });
 }
 
 function infoPage(o, s, id) {
@@ -138,17 +138,17 @@ function infoPage(o, s, id) {
     terms: ['Terms of Service', `<p>By using ${esc(n)} you agree to these terms. Prices are in Naira and may change without notice. An order is confirmed after payment is received. Delivery fees are shown at checkout by state. We may cancel an order if a product is out of stock and will refund any payment in full. Product images are for illustration. Warranty terms are stated on each product page. Contact: ${esc(ph)} ${esc(em)}.</p>`],
     returns: ['Returns and Refunds', `<p>If your item arrives damaged, faulty or different from what you ordered, contact us within 48 hours of delivery with photos or a short video. We will repair, replace or refund after confirming the issue. Items must be unused and in original packaging unless faulty. Refunds go back to the original payment method within 7 working days of approval. Contact: ${esc(ph)} ${esc(em)}.</p>`],
     delivery: ['Delivery Information', `<p>We deliver to all states in Nigeria. The delivery fee is calculated by state at checkout. Pay first, then add your delivery address on the confirmation screen or from My Orders. Orders are dispatched after payment and address confirmation. Delivery time depends on your location, typically 1-3 working days in major cities and 3-7 days elsewhere. We will contact you by phone or WhatsApp on dispatch.</p>`],
-    about: ['About ' + n, (s.aboutText ? String(s.aboutText).split(/\n\s*\n/).map(x => `<p>${esc(x.trim())}</p>`).join('') : `<p>${esc(n)} is a Nigerian online store for genuine electronics, appliances and machines. ${esc(s.tagline || '')}</p>`) + `<h2>Contact us</h2><p>Address: ${esc(s.address || '63 Jagunmolu Street, Somolu, Bariga, Lagos')}<br>Phone: ${esc(ph)}<br>Email: ${esc(em)}</p><h2>How we sell</h2><p>Brand new products, warranty, secure card or bank transfer payment, tracked delivery nationwide (within 24 hours in Lagos) and free store pickup.</p>`]
+    about: ['About ' + n, (s.aboutText ? String(s.aboutText).split(/\n\s*\n/).map(x => `<p>${esc(x.trim())}</p>`).join('') : `<p>${esc(n)} is a Nigerian online store for genuine products across many categories. ${esc(s.tagline || '')}</p>`) + `<h2>Contact us</h2><p>Address: ${esc(s.address || '63 Jagunmolu Street, Somolu, Bariga, Lagos')}<br>Phone: ${esc(ph)}<br>Email: ${esc(em)}</p><h2>How we sell</h2><p>Brand new products, warranty, secure card or bank transfer payment, tracked delivery nationwide (within 24 hours in Lagos) and free store pickup.</p>`]
   };
   const x = P[id]; if (!x) return null;
   const ld = id === 'about' ? { '@context': 'https://schema.org', '@type': 'Store', name: n, url: o, description: s.seoDesc || (s.aboutText ? String(s.aboutText).slice(0, 300) : undefined), telephone: ph || undefined, email: em || undefined, address: { '@type': 'PostalAddress', streetAddress: s.pickupAddr || s.address || '63 Jagunmolu Street, Somolu, Bariga', addressLocality: 'Lagos', addressCountry: 'NG' }, areaServed: { '@type': 'Country', name: 'Nigeria' } } : undefined;
-  return shell(o, s, { title: `${x[0]} | ${n}`, desc: id === 'about' && s.aboutText ? String(s.aboutText).replace(/\s+/g, ' ').slice(0, 155) : `${x[0]} for ${n}, an online electronics store in Nigeria.`, canonical: `${o}/info/${id}`, body: `<h1>${esc(x[0])}</h1>${x[1]}`, ld });
+  return shell(o, s, { title: `${x[0]} | ${n}`, desc: id === 'about' && s.aboutText ? String(s.aboutText).replace(/\s+/g, ' ').slice(0, 155) : `${x[0]} for ${n}, an online store in Nigeria.`, canonical: `${o}/info/${id}`, body: `<h1>${esc(x[0])}</h1>${x[1]}`, ld });
 }
 
 function feed(o, s, cats, prods) {
   const cdata = x => String(x == null ? '' : x).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   const items = prods.filter(p => Number(p.price) > 0).map(p => {
-    const c = cats.find(x => x.id === p.cat) || { name: 'Electronics' }, price = fprice(p);
+    const c = cats.find(x => x.id === p.cat) || { name: 'Products' }, price = fprice(p);
     return `<item><g:id>${esc(p.id)}</g:id><title>${esc(cdata(p.name).slice(0, 150))}</title><description>${esc(cdata(p.desc || p.name).slice(0, 4900))}</description><link>${esc(pUrl(p, o))}</link><g:image_link>${esc(imgUrl(p, o))}</g:image_link><g:availability>${p.stock > 0 ? 'in_stock' : 'out_of_stock'}</g:availability><g:price>${Number(p.price).toFixed(2)} NGN</g:price>${Number(p.discount) > 0 ? `<g:sale_price>${price.toFixed(2)} NGN</g:sale_price>` : ''}<g:brand>${esc(p.brand || s.name || 'Rocero')}</g:brand><g:condition>new</g:condition><g:identifier_exists>no</g:identifier_exists><g:mpn>${esc(p.sku || p.id)}</g:mpn><g:product_type>${esc(c.name)}</g:product_type></item>`;
   }).join('');
   return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>${esc(s.name || 'Rocero')}</title><link>${esc(o)}</link><description>${esc(s.tagline || 'Products')}</description>${items}</channel></rss>`;
