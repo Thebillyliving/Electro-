@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rocero | Buy genuine electronics and machines in Nigeria</title>
-<meta name="description" content="Shop genuine electronics, appliances and machines online in Nigeria. Warranty on every item, secure payment and nationwide delivery.">
+<title>Rocero | Shop genuine products online in Nigeria</title>
+<meta name="description" content="Shop genuine products online in Nigeria: machines, gadgets, home items and more. Warranty, secure payment and nationwide delivery.">
 <meta name="theme-color" content="#ff6a00">
 <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-192.png">
 <!-- Paste your Google Search Console and Bing verification meta tags here -->
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Store","name":"Rocero","description":"Genuine electronics, appliances and machines delivered across Nigeria.","areaServed":"NG","priceRange":"₦₦"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Store","name":"Rocero","description":"Genuine products from many categories delivered across Nigeria.","areaServed":"NG","priceRange":"₦₦"}</script>
 <style>
 :root{--bg:#fafaf7;--card:#fff;--ink:#141414;--mut:#6b7280;--acc:#ff6a00;--acc2:#e55d00;--ok:#16a34a;--bad:#dc2626;--warn:#d97706;--line:#e8e8e3;--nav:#141414;--green:#16a34a;--green2:#15803d}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -123,7 +123,7 @@ function seed(){
     ['Bosch GSB 13 RE Impact Drill',9,'Bosch',68000,10,25,0,0,'Power: 600W\nChuck: 13mm'],
     ['Industrial Pepper Grinding Machine',10,'Local',185000,0,2,0,0,'Motor: 3HP\nMaterial: Stainless steel']
   ];
-  const products=P.map((p,i)=>({id:'p'+i,name:p[0],cat:'c'+p[1],brand:p[2],price:p[3],discount:p[4],stock:p[5],flash:!!p[6],featured:!!p[7],specs:p[8],desc:'Brand new, genuine and covered by warranty. Nationwide delivery available.',warranty:'12 months',sku:'EL-'+(1000+i),image:'',active:true,created:day(14-i),sold:0}));
+  const products=P.map((p,i)=>({id:'p'+i,name:p[0],cat:'c'+p[1],brand:p[2],price:p[3],discount:p[4],stock:p[5],flash:!!p[6],featured:!!p[7],specs:p[8],desc:'Brand new, genuine and covered by warranty. Nationwide delivery available.',warranty:'12 months',sku:'RC-'+(1000+i),image:'',active:true,created:day(14-i),sold:0}));
   const users=[
     {id:'u1',name:'Ada Obi',email:'ada@mail.com',phone:'08011111111',pass:'1234',created:day(12),blocked:false},
     {id:'u2',name:'Tunde Bello',email:'tunde@mail.com',phone:'08022222222',pass:'1234',created:day(9),blocked:false}];
@@ -148,7 +148,7 @@ function seed(){
       {id:'s1',name:'Lagos',states:'Lagos',fee:5000,eta:'1-2 days'},
       {id:'s2',name:'Abuja (FCT)',states:'Abuja (FCT)',fee:8000,eta:'2-3 days'},
       {id:'s3',name:'Other states',states:'*',fee:15000,eta:'3-7 days'}],
-    settings:{name:'Rocero',tagline:'Electronics & Machines Marketplace',phone:'+234 800 000 0000',whatsapp:'2348000000000',email:'support@electro.ng',address:'Lagos, Nigeria',vat:7.5,lowStock:5,adminEmail:'admin@electro.ng',adminPass:'admin123',card:true,transfer:true,bank:'Bank: Your Bank\nAccount: 0000000000\nName: Rocero Ltd',autoApprove:true},
+    settings:{name:'Rocero',tagline:'Online Shopping Marketplace',phone:'+234 800 000 0000',whatsapp:'2348000000000',email:'support@electro.ng',address:'Lagos, Nigeria',vat:7.5,lowStock:5,adminEmail:'admin@electro.ng',adminPass:'admin123',card:true,transfer:true,bank:'Bank: Your Bank\nAccount: 0000000000\nName: Rocero Ltd',autoApprove:true},
     cart:[],wish:[],session:{user:null,admin:false}
   };
 }
@@ -281,7 +281,7 @@ function csv(name,rows){
 const cartCount=()=>DB.cart.reduce((a,b)=>a+b.qty,0);
 const cartLines=()=>DB.cart.map(l=>({l,p:DB.products.find(p=>p.id===l.id)})).filter(x=>x.p);
 const cartSub=()=>cartLines().reduce((a,x)=>a+fprice(x.p)*x.l.qty,0);
-const manDel=()=>DB.settings.delMode==='manual';
+const manDel=()=>true;
 function shipFee(state,ls){
   if(!state)return 0;
   const z=DB.shipping.find(z=>z.states.split(',').map(s=>s.trim().toLowerCase()).includes(state.toLowerCase()))||DB.shipping.find(z=>z.states==='*');
@@ -308,6 +308,7 @@ function route(){closeModal();closeDrawer();if(location.hash==='#admin'){renderA
   {const rm=/^#rider\/(ORD-[A-Z0-9]+)\/([a-z0-9]{8,})$/.exec(location.hash);if(rm){renderRider(rm[1],rm[2]);return}}
   if(location.hash==='#balance'){S.view='balance'}
   if(location.hash==='#track'){S.view='track'}
+  if(location.hash==='#orders'){S.view='orders';if(CLOUD&&DB.session.user)pullOrders().then(renderStore).catch(()=>{})}
   if(location.hash==='#cashback'){S.view='cashback'}
   const m=/^#(p|c)=(.+)$/.exec(location.hash);
   if(m&&m[1]==='c'&&cat(m[2]).name!=='Uncategorised'){S.view='home';S.cat=m[2]}
@@ -317,8 +318,9 @@ function header(){
   const u=DB.session.user?DB.users.find(x=>x.id===DB.session.user):null;
   return `<div class="hdr"><div class="wrap"><div class="top">
   <div class="logo" data-a="home"><i>⚡</i>${esc(DB.settings.name.slice(0,-1))}<b>${esc(DB.settings.name.slice(-1))}</b></div>
-  <div class="search"><input id="q" placeholder="Search generators, laptops, machines..." value="${esc(S.q)}"><button class="btn" data-a="home">Search</button><div id="sug"></div></div>
+  <div class="search"><input id="q" placeholder="Search products..." value="${esc(S.q)}"><button class="btn" data-a="home">Search</button><div id="sug"></div></div>
   <button class="ico" data-a="account">👤 ${u?esc(u.name.split(' ')[0]):'Login'}</button>
+  <button class="ico" data-a="myorders">📦 Orders</button>
   <button class="ico" data-a="wishlist">♡ Wishlist${DB.wish.length?`<span class="badge">${DB.wish.length}</span>`:''}</button>
   <button class="ico" data-a="cart">🛒 Cart${cartCount()?`<span class="badge">${cartCount()}</span>`:''}</button>
   </div></div></div>`;
@@ -410,15 +412,15 @@ function renderStore(){
     main=`<div class="sec"><h3>♡ Wishlist</h3>${l.length?`<div class="grid">${l.map(card).join('')}</div>`:'<div class="empty">Nothing saved yet</div>'}</div>`;
   }else if(S.view==='orders'){
     const u=DB.session.user,l=DB.orders.filter(o=>o.userId===u).reverse();
-    main=`<div class="sec"><h3>My orders</h3>${l.some(o=>o.plan)?'<div class="row" style="margin-bottom:8px"><button class="btn ghost sm" data-a="balance">💳 View my balance</button></div>':''}${l.length?l.map(o=>{
+    main=`<div class="sec"><h3>My orders</h3>${l.some(o=>o.plan)?'<div class="row" style="margin-bottom:8px"><button class="btn ghost sm" data-a="balance">💳 View my balance</button></div>':''}${!u?'<div class="empty">Log in to see your orders<div style="margin-top:8px"><button class="btn" data-a="account">Login</button></div></div>':l.length?(()=>{const act=l.filter(o=>!['Delivered','Cancelled'].includes(o.status)),old=l.filter(o=>['Delivered','Cancelled'].includes(o.status)),one=o=>{
       const idx=o.status==='Cancelled'?-1:STATUSES.indexOf(o.status);
       return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px"><div class="row sp"><b>${o.id}</b>${stateTag(o.status)}</div>
-      <div class="mut">${dstr(o.date)} · ${o.items.length} item(s) · ${fmt(o.total)} · ${stateTag(o.payStatus)}</div>
+      <div class="mut">${dstr(o.date)} · ${o.items.length} item(s) · ${fmt(o.total)} · ${stateTag(o.payStatus)}</div>${o.address&&!o.pickup?`<div class="mut">📍 ${esc(o.name)}, ${esc(o.address)}, ${esc(o.city||'')}, ${esc(o.state)}</div>`:''}
       ${o.pickup?pickBlock(o):''}${dueBy(o)&&o.status!=='Delivered'&&o.status!=='Cancelled'?`<div class="mut">🚚 Delivery due by ${tstr(dueBy(o))}</div>`:''}${o.lateCredited?`<div class="mut" style="color:var(--green)">🎁 Late delivery cashback: ${fmt(o.lateAmt)}</div>`:''}
       ${Number(o.cbUsed)>0?`<div class="mut" style="color:var(--green)">🎁 Cashback used: ${fmt(o.cbUsed)}</div>`:''}${o.cbCredited&&o.cbEarned>0?`<div class="mut" style="color:var(--green)">🎁 Cashback earned: ${fmt(o.cbEarned)}</div>`:''}
       <div class="tl">${STATUSES.map((s,i)=>`<i class="${i<=idx?'on':''}"></i>`).join('')}</div>
       <div class="mut">${o.items.map(i=>esc(i.name)+' ×'+i.qty).join(', ')}</div>
-      ${o.quotePending&&o.status!=='Cancelled'?'<div style="margin-top:8px"><span class="tag warn">Delivery price being confirmed</span></div>':''}${o.payment==='installment'&&o.plan&&!o.quotePending?instBlock(o):!o.quotePending&&o.payStatus==='Pending'&&o.status!=='Cancelled'?(paidLocal().includes(o.id)?'<div style="margin-top:8px"><span class="tag warn">Payment received, confirming</span></div>':`<div style="margin-top:8px"><div class="mut">Delivery ${fmt(o.shipping)} · <b>Total to pay ${fmt(o.total)}</b></div><button class="btn sm green" style="margin-right:6px" data-a="paynow" data-id="${o.id}">Pay now</button></div>`):''}${o.status!=='Cancelled'?`<button class="btn ghost sm" style="margin-top:8px;margin-right:6px" data-a="track">🚚 Track delivery</button>`:''}${o.detailsPending&&o.status!=='Cancelled'?`<button class="btn sm" style="margin-top:8px;margin-right:6px" data-a="adddetails" data-id="${o.id}">Add delivery address</button>`:''}${o.status==='Pending'&&!(o.plan&&paidAmt(o)>0)?`<button class="btn sm red" style="margin-top:8px" data-a="cancelmine" data-id="${o.id}">Cancel order</button>`:''}</div>`}).join(''):'<div class="empty">No orders yet</div>'}</div>`;
+      ${o.quotePending&&o.status!=='Cancelled'?'<div style="margin-top:8px"><span class="tag warn">Delivery fee coming within 1 hour</span></div>':''}${o.payment==='installment'&&o.plan&&!o.quotePending?instBlock(o):!o.quotePending&&o.payStatus==='Pending'&&o.status!=='Cancelled'?(paidLocal().includes(o.id)?'<div style="margin-top:8px"><span class="tag warn">Payment received, confirming</span></div>':`<div style="margin-top:8px"><div class="mut">Delivery ${fmt(o.shipping)} · <b>Total to pay ${fmt(o.total)}</b></div><button class="btn sm green" style="margin-right:6px" data-a="paynow" data-id="${o.id}">Pay now</button></div>`):''}${o.status!=='Cancelled'?`<button class="btn ghost sm" style="margin-top:8px;margin-right:6px" data-a="track">🚚 Track delivery</button>`:''}${o.detailsPending&&o.status!=='Cancelled'?`<button class="btn sm" style="margin-top:8px;margin-right:6px" data-a="adddetails" data-id="${o.id}">Add delivery address</button>`:''}${o.status==='Pending'&&!(o.plan&&paidAmt(o)>0)?`<button class="btn sm red" style="margin-top:8px" data-a="cancelmine" data-id="${o.id}">Cancel order</button>`:''}</div>`};return (act.length?'<h4 style="margin:10px 0 6px">Current orders</h4>'+act.map(one).join(''):'')+(old.length?'<h4 style="margin:14px 0 6px">Past orders</h4>'+old.map(one).join(''):'')})():'<div class="empty">No orders yet</div>'}</div>`;
   }else if(S.view==='balance'){main=balanceView()}
   else if(S.view==='track'){main=trackView()}
   else if(S.view==='cashback'){main=cashbackView()}
@@ -438,13 +440,13 @@ function viewProduct(id){
   const r=rate(p),revs=DB.reviews.filter(x=>x.pid===id&&x.approved).reverse();
   const specs=(p.specs||'').split('\n').filter(Boolean).map(l=>{const i=l.indexOf(':');return i<0?[l,'']:[l.slice(0,i),l.slice(i+1)]});
   const rel=DB.products.filter(x=>x.active&&x.cat===p.cat&&x.id!==id).slice(0,4);
-  modal(`<div class="pd"><div><img src="${img(p)}" style="width:100%;border-radius:12px"></div><div>
+  modal(`<div class="pd"><div><img id="pmain" src="${img(p)}" style="width:100%;border-radius:12px">${gallery(p)}</div><div>
   <h3>${esc(p.name)}</h3><div class="mut">${esc(cat(p.cat).name)} · ${esc(p.brand)} · SKU ${esc(p.sku)}</div>
   <div class="stars" style="margin:4px 0">${r.n?stars(r.avg)+` (${r.n})`:'No reviews yet'}</div>
   <div class="price" style="font-size:24px">${fmt(fprice(p))}${p.discount?`<span class="old">${fmt(p.price)}</span> <span class="tag bad">-${p.discount}%</span>`:''}</div>
   <div class="mut" style="margin:8px 0">🚚 Lagos: delivery within 24 hours · Other states: ${hrsText(prodHrs(p))} · 🏬 Free store pickup available</div>
   ${p.cbEarn&&cbRate()>0||p.cbPay?`<div style="background:#f0fdf4;border:1px dashed var(--green);border-radius:8px;padding:8px;margin:8px 0;font-size:13px">${p.cbEarn&&cbRate()>0?`🎁 Earn <b>${fmt(r2(fprice(p)*cbRate()/100))}</b> cashback after delivery.`:''} ${p.cbPay?'You can pay for this with your cashback.':''}</div>`:''}
-  ${instOk(p)?(()=>{const pr=fprice(p),dp=Math.round(pr*p.instDeposit/100),m=Number(p.instMonths);return `<div style="background:#fff7ed;border:1px dashed var(--acc);border-radius:8px;padding:8px;margin:6px 0;font-size:13px">💳 <b>Pay in installments:</b> ${fmt(dp)} now, then ${m} × ${fmt(Math.round((pr-dp)/m))} monthly <span class="mut">(delivery and VAT added at checkout)</span></div>`})():''}
+  ${instOk(p)?(()=>{const pr=fprice(p),dp=Math.round(pr*minDep()/100),m=monthsN();return `<div style="background:#fff7ed;border:1px dashed var(--acc);border-radius:8px;padding:8px;margin:6px 0;font-size:13px">💳 <b>Pay in installments:</b> from ${fmt(dp)} (${minDep()}%) now, then ${m} × ${fmt(Math.round((pr-dp)/m))} monthly <span class="mut">(delivery and VAT added at checkout)</span></div>`})():''}
   <p style="margin:8px 0">${p.stock>0?`<span class="tag ok">In stock (${p.stock})</span>`:'<span class="tag bad">Out of stock</span>'} <span class="tag">Warranty: ${esc(p.warranty||'N/A')}</span></p>
   <div class="row"><div class="qty"><button data-a="qminus">−</button><span id="pq">1</span><button data-a="qplus" data-id="${p.id}">+</button></div>
   <button class="btn" data-a="addq" data-id="${p.id}" ${p.stock<=0?'disabled':''}>Add to cart</button>
@@ -484,7 +486,8 @@ function checkout(){
   const u=DB.users.find(x=>x.id===DB.session.user),sub=cartSub(),cd=couponDiscount(COUPON,sub),s=DB.settings;
   modal(`<h3>Checkout</h3><form data-f="order"><div class="two"><div><label>Full name</label><input name="name" required value="${esc(u.name)}"></div><div><label>Phone</label><input name="phone" required value="${esc(u.phone||'')}"></div></div><label>Get your order by</label><select name="method" data-i="chmeth"><option value="delivery">Delivery</option><option value="pickup">Store pickup (free)</option></select><div id="stwrap"><label>Delivery state</label><select name="state" data-i="chstate">${STATES.map(x=>`<option ${x==='Lagos'?'selected':''}>${x}</option>`).join('')}</select></div>
   <div id="adrwrap"><label>Where should we deliver?</label><select name="addrsel" data-i="chaddr">${manDel()?'':'<option value="later">I will add my address after I pay</option>'}${(u.addrs||[]).map((a,i)=>`<option value="${i}">${esc(a.label)}</option>`).join('')}<option value="new" ${manDel()&&!(u.addrs||[]).length?'selected':''}>${(u.addrs||[]).length||!manDel()?'➕ Deliver to a different address':'➕ Enter my delivery address'}</option></select>
-  <div id="adrnew" style="${manDel()&&!(u.addrs||[]).length?'':'display:none'}"><div class="two"><div><label>Receiver name</label><input name="rname" value="${esc(u.name)}"></div><div><label>Receiver phone</label><input name="rphone" type="tel" value="${esc(u.phone||'')}"></div></div><label>House number and street</label><input name="raddr" ${manDel()&&!(u.addrs||[]).length?'required':''}><label>Nearest landmark or bus stop</label><input name="rlandmark" ${manDel()&&!(u.addrs||[]).length?'required':''}><label>Area / LGA</label><input name="rcity" ${manDel()&&!(u.addrs||[]).length?'required':''}><p class="mut">Choose the delivery state above. The delivery price follows it.</p><label class="chk"><input type="checkbox" name="rsave" checked>Save this address for next time</label></div></div><label>How will you pay?</label><select name="payment" data-i="chpay">${s.card?'<option value="card">Card</option>':''}${s.transfer?'<option value="transfer">Bank transfer</option>':''}${(s.card||s.transfer)&&cartLines().length&&cartLines().every(({p})=>instOk(p))?'<option value="installment">Pay in installments</option>':''}</select>
+  <div id="adrnew" style="${manDel()&&!(u.addrs||[]).length?'':'display:none'}"><div class="two"><div><label>Receiver name</label><input name="rname" value="${esc(u.name)}"></div><div><label>Receiver phone</label><input name="rphone" type="tel" value="${esc(u.phone||'')}"></div></div><label>House number and street</label><input name="raddr" ${manDel()&&!(u.addrs||[]).length?'required':''}><label>Nearest landmark or bus stop</label><input name="rlandmark" ${manDel()&&!(u.addrs||[]).length?'required':''}><label>Area / LGA</label><input name="rcity" ${manDel()&&!(u.addrs||[]).length?'required':''}><label>Alternative phone (optional)</label><input name="rphone2" type="tel"><label>Alternative address (optional)</label><input name="raddr2"><label>Delivery notes (optional)</label><input name="rnotes" placeholder="Gate colour, who to call, best time"><p class="mut">Choose the delivery state above. The delivery price follows it.</p><label class="chk"><input type="checkbox" name="rsave" checked>Save this address for next time</label></div></div><label>How will you pay?</label><select name="payment" data-i="chpay">${s.card?'<option value="card">Card</option>':''}${s.transfer?'<option value="transfer">Bank transfer</option>':''}${(s.card||s.transfer)&&cartLines().length&&cartLines().every(({p})=>instOk(p))?'<option value="installment">Pay in installments</option>':''}</select>
+  <div id="depwrap" style="display:none"><label>Deposit you pay now (the rest is split monthly)</label><select name="instDep" data-i="chdep">${[...new Set([minDep(),20,30,40,50,60,70])].filter(x=>x>=minDep()&&x<=90).sort((a,b)=>a-b).map(x=>`<option value="${x}">${x}%</option>`).join('')}</select></div>
   <div id="cbbox">${cbBox()}</div>
   <div style="background:var(--bg);border-radius:8px;padding:10px;margin-top:12px" id="sum">${sumHtml('Lagos',sub,cd.d)}</div>
   <button class="btn full" style="margin-top:12px">${manDel()?'Place order':'Pay now'}</button></form>`);
@@ -495,7 +498,7 @@ function sumHtml(state,sub,disc){
   return `<div class="row sp"><span>Subtotal</span><span>${fmt(sub)}</span></div>${disc?`<div class="row sp"><span>Discount</span><span>-${fmt(disc)}</span></div>`:''}
   <div class="row sp"><span>${pk?'Store pickup':'Delivery ('+esc(state)+')'}</span><span>${pk?'Free':mq?'To be confirmed':fmt(sh)}</span></div><div class="row sp"><span>VAT (${DB.settings.vat}%)</span><span>${fmt(vat)}</span></div>${cb?`<div class="row sp" style="color:var(--green)"><span>🎁 Cashback</span><span>-${fmt(cb)}</span></div>`:''}
   <div class="row sp" style="font-size:16px;margin-top:6px"><b>Total</b><b>${fmt(pl?Math.round(sub-disc+sh+vat-cb):sub-disc+sh+vat-cb)}</b></div>${pl?planPreview(pl):''}${earn>0?`<div class="mut" style="color:var(--green);margin-top:4px">🎁 You will earn ${fmt(earn)} cashback after delivery</div>`:''}
-  <p class="mut" style="margin-top:6px">${pk?'📍 Pick up at '+esc(pickAddr())+'. After you pay you get your pickup serial code.':(mq?'🚚 We will confirm your delivery price after you place the order, then you pay. Delivery <b>':'🚚 Delivery <b>')+hrsText(promiseHrs(state,cartLines().map(x=>x.p)))+'</b> after payment. If it arrives later than that you get '+fmt(lateAmt())+' cashback. '+(document.querySelector('form[data-f=order] [name=addrsel]')&&document.querySelector('form[data-f=order] [name=addrsel]').value!=='later'?'We deliver to the address you chose.':'You enter your full delivery address right after you pay.')}</p>
+  <p class="mut" style="margin-top:6px">${pk?'📍 Pick up at '+esc(pickAddr())+'. After you pay you get your pickup serial code.':(mq?'🚚 Place your order and you will get your delivery fee within 1 hour (see Orders). Then you pay everything together. Delivery <b>':'🚚 Delivery <b>')+hrsText(promiseHrs(state,cartLines().map(x=>x.p)))+'</b> after payment. If it arrives later than that you get '+fmt(lateAmt())+' cashback. '+(document.querySelector('form[data-f=order] [name=addrsel]')&&document.querySelector('form[data-f=order] [name=addrsel]').value!=='later'?'We deliver to the address you chose.':'You enter your full delivery address right after you pay.')}</p>
   <p style="margin-top:6px;font-size:12px;color:var(--bad)"><b>${pe&&pe.value==='transfer'?NOCASH_T:NOCASH}</b></p>`;
 }
 function placeOrder(f){
@@ -503,7 +506,7 @@ function placeOrder(f){
   for(const {l,p} of ls)if(l.qty>p.stock)return toast(p.name+': only '+p.stock+' left');
   const sub=cartSub(),cd=couponDiscount(COUPON,sub),pk=!!(f.method&&f.method.value==='pickup'),sh=pk||manDel()?0:shipFee(f.state.value),vat=(sub-cd.d)*DB.settings.vat/100,cbv=f.usecb&&f.usecb.checked?cbCalc(ls,sub-cd.d+sh+vat-100):{cb:0};let total=sub-cd.d+sh+vat-cbv.cb;
   const u0=DB.users.find(x=>x.id===DB.session.user)||{},asel=!pk&&f.addrsel?f.addrsel.value:'later';let ad=null;
-  if(asel==='new'){ad={name:(f.rname.value||'').trim()||f.name.value,phone:(f.rphone.value||'').trim()||f.phone.value,address:f.raddr.value.trim(),landmark:f.rlandmark.value.trim(),city:f.rcity.value.trim(),state:f.state.value};if(!ad.address||!ad.landmark||!ad.city)return toast('Fill in the delivery address');if(f.rsave.checked&&u0.id)u0.addrs=(u0.addrs||[]).concat([Object.assign({label:ad.address+', '+ad.city+', '+ad.state},ad)]).slice(-5)}
+  if(asel==='new'){ad={name:(f.rname.value||'').trim()||f.name.value,phone:(f.rphone.value||'').trim()||f.phone.value,address:f.raddr.value.trim(),landmark:f.rlandmark.value.trim(),city:f.rcity.value.trim(),phone2:(f.rphone2.value||'').trim(),altAddress:(f.raddr2.value||'').trim(),notes:(f.rnotes.value||'').trim(),state:f.state.value};if(!ad.address||!ad.landmark||!ad.city)return toast('Fill in the delivery address');if(f.rsave.checked&&u0.id)u0.addrs=(u0.addrs||[]).concat([Object.assign({label:ad.address+', '+ad.city+', '+ad.state},ad)]).slice(-5)}
   else if(asel!=='later'&&!pk){const a=(u0.addrs||[])[Number(asel)];if(a)ad=Object.assign({},a,{state:f.state.value})}
   const pay=f.payment.value||'card';let plan=null;
   if(pay==='installment'){total=Math.round(total);plan=buildPlan(ls.map(({l,p})=>({p,sub:fprice(p)*l.qty})),total);if(!plan)return toast('Installments are not available for these items')}
@@ -512,20 +515,23 @@ function placeOrder(f){
     items:ls.map(({l,p})=>({id:p.id,name:p.name,price:fprice(p),qty:l.qty})),subtotal:sub,shipping:sh,discount:cd.d,coupon:cd.c?cd.c.code:'',vat,total,cbUsed:cbv.cb,cbItem:cbv.cb?cbv.item.id:'',payment:pay,quotePending:false,payStatus:'Pending',status:'Pending',date:new Date().toISOString()};
   if(plan){o.plan=plan;o.paidTotal=0}
   if(!pk&&manDel()){if(!ad)return toast('Please enter your delivery address');o.quotePending=true;o.shipAdj=true}
-  if(ad){o.buyerName=o.name;o.buyerPhone=o.phone;Object.assign(o,{address:ad.address,landmark:ad.landmark,city:ad.city,name:ad.name||o.name,phone:ad.phone||o.phone,detailsPending:false})}
+  if(ad){o.buyerName=o.name;o.buyerPhone=o.phone;Object.assign(o,{address:ad.address,landmark:ad.landmark,city:ad.city,name:ad.name||o.name,phone:ad.phone||o.phone,phone2:ad.phone2||'',altAddress:ad.altAddress||'',notes:ad.notes||'',detailsPending:false})}
   ls.forEach(({l,p})=>{p.stock-=l.qty;p.sold=(p.sold||0)+l.qty});
   if(cd.c)cd.c.used=(cd.c.used||0)+1;
   DB.orders.push(o);DB.cart=[];COUPON='';save();
   const s=DB.settings;
-  if(o.quotePending){updateBadges();modal(`<h3>✅ Order received</h3><p>Order <b>${o.id}</b> is saved. We will confirm the delivery price to <b>${esc(o.state)}</b> and then you can pay from <b>My orders</b>. We may also WhatsApp you on <b>${esc(o.phone)}</b>.</p><div class="row end"><button class="btn" data-a="myorders">View my orders</button></div>`);return}
+  if(o.quotePending){updateBadges();modal(`<h3>✅ Order received</h3><p>Order <b>${o.id}</b> is saved. You will get your delivery fee for <b>${esc(o.state)}</b> within 1 hour. Open <b>Orders</b> to see it and pay. We may also WhatsApp you on <b>${esc(o.phone)}</b>.</p><div class="row end"><button class="btn" data-a="myorders">View my orders</button></div>`);return}
   startPayment(o);
   updateBadges();
 }
 /* ============ INSTALLMENTS ============ */
-const instOk=p=>!!(p&&p.instOn&&Number(p.instMonths)>=1&&Number(p.instDeposit)>=1&&Number(p.instDeposit)<=90);
-function buildPlan(items,total,start){
+const instOk=p=>!!(p&&p.instOn);
+const minDep=()=>Math.min(90,Math.max(1,Number(DB.settings.instMin)||10));
+const monthsN=()=>Math.min(24,Math.max(1,Math.round(Number(DB.settings.instMonths)||3)));
+const curDep=()=>{const e=document.querySelector('form[data-f=order] [name=instDep]');return e&&e.value?Number(e.value):minDep()};
+function buildPlan(items,total,start,pctIn){
   if(!items.length||!items.every(x=>instOk(x.p)))return null;
-  const ss=items.reduce((a,x)=>a+x.sub,0)||1,pct=items.reduce((a,x)=>a+x.sub*Number(x.p.instDeposit),0)/ss,months=Math.max(...items.map(x=>Number(x.p.instMonths)));
+  const pct=Math.min(90,Math.max(minDep(),Number(pctIn)||curDep())),months=monthsN();
   total=Math.round(total);const dep=Math.min(total,Math.max(1,Math.round(total*pct/100))),bal=total-dep,base=Math.floor(bal/months),d0=new Date(start||Date.now());
   const sch=[{n:0,label:'Deposit',amount:dep,due:d0.toISOString(),status:'Pending'}];
   for(let i=1;i<=months;i++)sch.push({n:i,label:'Payment '+i+' of '+months,amount:i===months?bal-base*(months-1):base,due:new Date(d0.getTime()+i*30*864e5).toISOString(),status:'Pending'});
@@ -659,9 +665,9 @@ function cashbackTab(){
 /* ============ DELIVERY, PICKUP, LATE CASHBACK ============ */
 const pickAddr=()=>DB.settings.pickupAddr||'63 Jagunmolu Street, Somolu, Bariga, Lagos';
 const lateAmt=()=>{const v=DB.settings.lateCb;return v==null||v===''?500:(Number(v)||0)};
-const defHrs=()=>Number(DB.settings.delHrs)||72;
-const hrsText=h=>h<=24?'within 24 hours':h%24===0?'within '+(h/24)+' days':'within '+h+' hours';
-const prodHrs=p=>Number(p&&p.delHrs)||defHrs();
+const defHrs=()=>72;
+const hrsText=h=>'within '+h+' hours';
+const prodHrs=p=>72;
 const promiseHrs=(state,ps)=>state==='Lagos'?24:Math.max(1,...ps.map(prodHrs));
 const isPick=()=>{const m=document.querySelector('form[data-f=order] [name=method]');return !!m&&m.value==='pickup'};
 function newCode(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789',r=new Uint32Array(6);(window.crypto||{getRandomValues:x=>x.forEach((_,i)=>x[i]=Math.random()*4e9)}).getRandomValues(r);return 'PK-'+[...r].map(x=>a[x%a.length]).join('')}
@@ -960,7 +966,7 @@ function authModal(mode){
 
 /* ============ ADMIN ============ */
 const A={tab:'dashboard',q:'',ostatus:''};
-const TABS=[['dashboard','📊 Dashboard'],['products','📦 Products'],['seo','🔎 SEO & Pages'],['categories','🗂 Categories'],['orders','🧾 Orders'],['pickups','🏬 Pickups'],['installments','💳 Installments'],['cashback','🎁 Cashback'],['customers','👥 Customers'],['inventory','🏭 Inventory'],['coupons','🏷 Coupons'],['banners','🖼 Banners'],['reviews','⭐ Reviews'],['shipping','🚚 Shipping'],['payments','💳 Payments'],['analytics','📈 Analytics'],['insights','📍 Insights'],['settings','⚙️ Settings']];
+const TABS=[['dashboard','📊 Dashboard'],['products','📦 Products'],['seo','🔎 SEO & Pages'],['categories','🗂 Categories'],['orders','🧾 Orders'],['pickups','🏬 Pickups'],['installments','💳 Installments'],['cashback','🎁 Cashback'],['customers','👥 Customers'],['inventory','🏭 Inventory'],['coupons','🏷 Coupons'],['banners','🖼 Banners'],['reviews','⭐ Reviews'],['payments','💳 Payments'],['analytics','📈 Analytics'],['insights','📍 Insights'],['settings','⚙️ Settings']];
 const CRUD={
   categories:{title:'category',def:{name:'',icon:'📦'},fields:[{k:'name',l:'Name'},{k:'icon',l:'Icon (emoji)'}]},
   coupons:{title:'coupon',def:{code:'',type:'percent',value:10,min:0,expires:'',active:true,used:0},fields:[{k:'code',l:'Code'},{k:'type',l:'Type',t:'select',o:['percent','fixed']},{k:'value',l:'Value (% or ₦)',t:'number'},{k:'min',l:'Minimum spend ₦',t:'number'},{k:'expires',l:'Expires',t:'date'},{k:'active',l:'Active',t:'checkbox'}]},
@@ -1017,17 +1023,15 @@ function products(){
   `<div class="sec">${l.length?l.map(p=>`<div class="pcard"><img class="thumb" loading="lazy" src="${img(p)}"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><div class="mut">${esc(cat(p.cat).name)} · ${esc(p.sku)}</div><div>${fmt(fprice(p))}${p.discount?` <span class="mut"><s>${fmt(p.price)}</s> -${p.discount}%</span>`:''} · Stock ${p.stock}</div><div style="margin:4px 0">${p.active?'<span class="tag ok">Active</span>':'<span class="tag">Hidden</span>'}${p.flash?' <span class="tag bad">Flash</span>':''}${p.featured?' <span class="tag blue">Featured</span>':''}</div><div class="row"><button class="btn sm" data-a="pedit" data-id="${p.id}">Edit</button><button class="btn ghost sm" data-a="ptoggle" data-id="${p.id}">${p.active?'Hide':'Show'}</button><button class="btn red sm" data-a="del" data-col="products" data-id="${p.id}">Delete</button></div></div></div>`).join(''):'<div class="empty">No products yet</div>'}</div>`;
 }
 function productForm(id){
-  const p=id?DB.products.find(x=>x.id===id):{name:'',cat:DB.categories[0]?.id,brand:'',price:0,discount:0,stock:0,sku:'EL-'+(1000+DB.products.length),desc:'',specs:'',warranty:'12 months',image:'',active:true,flash:false,featured:false};
+  const p=id?DB.products.find(x=>x.id===id):{name:'',cat:DB.categories[0]?.id,brand:'',price:0,discount:0,stock:0,sku:'RC-'+(1000+DB.products.length),desc:'',specs:'',warranty:'12 months',image:'',active:true,flash:false,featured:false};
   modal(`<h3>${id?'Edit':'Add'} product</h3><form data-f="product" data-id="${id||''}">
   <label>Name</label><input name="name" required value="${esc(p.name)}">
-  <div class="two"><div><label>Category</label><select name="cat">${DB.categories.map(c=>`<option value="${c.id}" ${c.id===p.cat?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div><div><label>Brand</label><input name="brand" value="${esc(p.brand)}"></div></div>
+  <div class="two"><div><label>Category</label><select name="cat" data-i="pcat">${DB.categories.map(c=>`<option value="${c.id}" ${c.id===p.cat?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new">➕ New category…</option></select></div><div><label>Brand</label><input name="brand" value="${esc(p.brand)}"></div></div>
   <div class="two"><div><label>Price ₦</label><input name="price" type="number" required step="any" value="${p.price}"></div><div><label>Discount %</label><input name="discount" type="number" min="0" max="90" value="${p.discount}"></div></div>
   <div class="two"><div><label>Stock</label><input name="stock" type="number" min="0" value="${p.stock}"></div><div><label>SKU</label><input name="sku" value="${esc(p.sku)}"></div></div>
   <label>Warranty</label><input name="warranty" value="${esc(p.warranty)}">
   <label class="chk"><input type="checkbox" name="instOn" ${p.instOn?'checked':''}>Allow installments for this product</label>
-  <div class="two"><div><label>Deposit % (1 to 90)</label><input name="instDeposit" type="number" min="1" max="90" value="${p.instDeposit||50}"></div><div><label>Monthly payments after deposit</label><input name="instMonths" type="number" min="1" max="24" value="${p.instMonths||3}"></div></div>
-  <label>Delivery time outside Lagos (hours, e.g. 48 or 72; blank = store default)</label><input name="delHrs" type="number" min="1" max="720" value="${p.delHrs||''}">
-  <label>Delivery fee for this product ₦ (per item). Leave blank to use the zone fee.</label><div class="two">${DB.shipping.map(z=>`<div><label class="mut">${esc(z.name)} (zone fee ${fmt(z.fee)})</label><input name="df_${esc(z.id)}" type="number" min="0" step="any" value="${p.delFees&&p.delFees[z.id]!==undefined?p.delFees[z.id]:''}"></div>`).join('')}</div>
+  <p class="mut" style="margin:0 0 6px">Installments: deposit starts at ${minDep()}% (customer can pay more) and the rest is split into ${monthsN()} automatic monthly payments. Change this in Settings.</p>
   <label class="chk"><input type="checkbox" name="cbEarn" ${p.cbEarn?'checked':''}>🎁 Customer earns cashback when buying this</label>
   <label class="chk"><input type="checkbox" name="cbPay" ${p.cbPay?'checked':''}>🎁 Customer can pay for this with cashback</label>
   <label>Search keywords (other names people use, separated by commas)</label><input name="tags" placeholder="e.g. gen, light, fridge, freezer" value="${esc(p.tags||'')}">
@@ -1035,15 +1039,26 @@ function productForm(id){
   <label>Google description (optional, up to 158 letters)</label><textarea name="seoDesc" rows="2" maxlength="158">${esc(p.seoDesc||'')}</textarea>
   <label>Description</label><textarea name="desc">${esc(p.desc)}</textarea>
   <label>Specifications (one per line, Key: Value)</label><textarea name="specs">${esc(p.specs)}</textarea>
-  <label>Product image (optional)</label><input type="file" accept="image/*" data-i="pimg"><input type="hidden" name="image" value="${esc(p.image)}">
-  <div id="pprev" style="margin:6px 0">${p.image?`<img src="${p.image}" style="height:70px;border-radius:8px">`:''}</div>
+  <label>Photos (up to 6, the first one is the cover). You can pick several at once.</label><input type="file" accept="image/*" multiple data-i="pimgs">
+  <div id="pprev" class="row" style="flex-wrap:wrap;gap:10px;margin:8px 0"></div>
+  <label>Videos (optional): paste YouTube or video links, one per line</label><textarea name="videos" rows="2" placeholder="https://youtu.be/...">${esc((p.videos||[]).join('\n'))}</textarea>
+  <label>Or upload a short video (max 25 MB)</label><input type="file" accept="video/*" data-i="pvid"><div id="vprog" class="mut"></div>
   <label class="chk"><input type="checkbox" name="active" ${p.active?'checked':''}>Visible in store</label>
   <label class="chk"><input type="checkbox" name="flash" ${p.flash?'checked':''}>Flash deal</label>
   <label class="chk"><input type="checkbox" name="featured" ${p.featured?'checked':''}>Featured</label>
   <div class="row end"><button type="button" class="btn ghost" data-a="close">Cancel</button><button class="btn">Save product</button></div></form>`);
+  PIMGS=(p.images&&p.images.length?p.images:(p.image?[p.image]:[])).slice();drawPrev();
 }
+let PIMGS=[];
+function drawPrev(){const b=$('#pprev');if(!b)return;b.innerHTML=PIMGS.map((d,i)=>`<div style="position:relative"><img src="${d}" style="height:72px;border-radius:8px;${i===0?'outline:2px solid var(--green)':''}"><button type="button" data-a="pimgdel" data-id="${i}" style="position:absolute;top:-8px;right:-8px;background:#dc2626;color:#fff;border-radius:50%;width:22px;height:22px;line-height:22px;padding:0">✕</button>${i===0?'<div class="tag ok" style="font-size:10px">Cover</div>':`<button type="button" class="btn ghost sm" style="font-size:10px;padding:2px 6px" data-a="pimgcover" data-id="${i}">Make cover</button>`}</div>`).join('')}
+async function fastImg(file,max){
+  try{if(self.createImageBitmap){const b=await createImageBitmap(file,{resizeWidth:max,resizeQuality:'medium'}),c=document.createElement('canvas');c.width=b.width;c.height=b.height;c.getContext('2d').drawImage(b,0,0);b.close&&b.close();return c.toDataURL('image/jpeg',.6)}}catch(e){}
+  return new Promise(res=>resizeImage(file,max,d=>res(d),()=>res(null)));
+}
+const vidEmbed=u=>{u=String(u).trim();const y=/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/.exec(u);if(y)return `<div style="margin-top:8px"><iframe src="https://www.youtube.com/embed/${y[1]}" style="width:100%;aspect-ratio:16/9;border:0;border-radius:10px" allowfullscreen loading="lazy"></iframe></div>`;if(!/^https?:\/\//.test(u))return '';if(/\.(mp4|webm|mov)(\?|$)/i.test(u)||/firebasestorage|storage\.googleapis/.test(u))return `<video src="${esc(u)}" controls preload="metadata" playsinline style="width:100%;border-radius:10px;margin-top:8px"></video>`;return `<a class="btn ghost sm" style="margin-top:8px" target="_blank" rel="noopener" href="${esc(u)}">▶ Watch video</a>`};
+function gallery(p){const im=p.images||[];return (im.length>1?`<div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${im.map((d,i)=>`<img src="${d}" data-a="gimg" data-id="${p.id}|${i}" style="height:54px;border-radius:6px;cursor:pointer">`).join('')}</div>`:'')+(p.videos||[]).map(vidEmbed).join('')}
 function categories(){
-  return `<div class="row end" style="margin:0 0 10px"><button class="btn" data-a="crudopen" data-col="categories" data-id="">+ Add category</button></div>`+
+  return `<div class="row end" style="margin:0 0 10px"><button class="btn ghost" data-a="popcats">+ Add popular store categories</button> <button class="btn" data-a="crudopen" data-col="categories" data-id="">+ Add category</button></div>`+
   tbl(['Icon','Name','Products',''],DB.categories.map(c=>`<tr><td style="font-size:22px">${c.icon}</td><td>${esc(c.name)}</td><td>${DB.products.filter(p=>p.cat===c.id).length}</td><td><button class="btn ghost sm" data-a="crudopen" data-col="categories" data-id="${c.id}">Edit</button> <button class="btn red sm" data-a="del" data-col="categories" data-id="${c.id}">Del</button></td></tr>`));
 }
 function orders(){
@@ -1053,7 +1068,7 @@ function orders(){
 }
 function orderModal(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
-  modal(`<h3>${o.id} ${stateTag(o.status)}</h3><div class="mut">${dstr(o.date)} · ${esc(o.name)} · ${esc(o.phone)} · ${esc(o.email)}</div><div style="margin:8px 0;padding:10px;background:var(--bg);border-radius:8px"><b>Delivery address</b>${o.detailsPending?' <span class="tag warn">Customer has not added it yet</span>':''}<div>${esc(o.address)}${o.landmark?', near '+esc(o.landmark):''}</div><div>${esc(o.city)}, ${esc(o.state)}</div><div class="mut">Phone: ${esc(o.phone)}${o.phone2?' / '+esc(o.phone2):''}</div>${o.notes?`<div class="mut">Note: ${esc(o.notes)}</div>`:''}<div class="row" style="margin-top:6px"><button class="btn ghost sm" data-a="copyaddr" data-id="${o.id}">Copy address</button><a class="btn ghost sm" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address+', '+o.city+', '+o.state+', Nigeria')}">Open in Maps</a></div></div>
+  modal(`<h3>${o.id} ${stateTag(o.status)}</h3><div class="mut">${dstr(o.date)} · ${esc(o.name)} · ${esc(o.phone)} · ${esc(o.email)}</div><div style="margin:8px 0;padding:10px;background:var(--bg);border-radius:8px"><b>Delivery address</b>${o.detailsPending?' <span class="tag warn">Customer has not added it yet</span>':''}<div>${esc(o.address)}${o.landmark?', near '+esc(o.landmark):''}</div><div>${esc(o.city)}, ${esc(o.state)}</div><div class="mut">Phone: ${esc(o.phone)}${o.phone2?' / '+esc(o.phone2):''}</div>${o.altAddress?`<div class="mut">Alternative address: ${esc(o.altAddress)}</div>`:''}${o.notes?`<div class="mut">Note: ${esc(o.notes)}</div>`:''}<div class="row" style="margin-top:6px"><button class="btn ghost sm" data-a="copyaddr" data-id="${o.id}">Copy address</button><a class="btn ghost sm" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address+', '+o.city+', '+o.state+', Nigeria')}">Open in Maps</a></div></div>
   ${o.status!=='Cancelled'&&o.payStatus!=='Paid'&&(!o.plan||paidAmt(o)===0)&&!o.pickup?`<form data-f="quote" data-id="${o.id}" class="row" style="margin:8px 0;align-items:flex-end"><div style="flex:1"><label>Delivery fee ₦ ${o.quotePending?'(waiting for your quote)':''}</label><input name="fee" type="number" min="0" step="any" required value="${o.quotePending?'':o.shipping}"></div><button class="btn sm green">${o.quotePending?'Send delivery price':'Update delivery price'}</button></form>${!o.quotePending&&o.shipAdj&&o.payStatus==='Pending'?`<a class="btn ghost sm" target="_blank" href="${quoteWa(o)}">📲 WhatsApp customer to pay</a>`:''}`:''}
   <table style="margin:10px 0">${o.items.map(i=>`<tr><td>${esc(i.name)}</td><td>×${i.qty}</td><td>${fmt(i.price*i.qty)}</td></tr>`).join('')}
   <tr><td colspan="2">Subtotal</td><td>${fmt(o.subtotal)}</td></tr>${o.discount?`<tr><td colspan="2">Discount ${esc(o.coupon)}</td><td>-${fmt(o.discount)}</td></tr>`:''}<tr><td colspan="2">Delivery</td><td>${o.quotePending?'Not set':fmt(o.shipping)}</td></tr><tr><td colspan="2">VAT</td><td>${fmt(o.vat)}</td></tr>${Number(o.cbUsed)>0?`<tr><td colspan="2">Cashback used</td><td>-${fmt(o.cbUsed)}</td></tr>`:''}<tr><td colspan="2"><b>Total</b></td><td><b>${fmt(o.total)}</b></td></tr></table>
@@ -1142,7 +1157,7 @@ function seoTab(){
   <label>Google Analytics ID (starts with G-)</label><input name="gaId" placeholder="G-ABC123XYZ" value="${esc(s.gaId||'')}">
   <label>Search Console verification file name</label><input name="gscFile" placeholder="google1234abcd.html" value="${esc(s.gscFile||'')}">
   <p class="mut">In Search Console choose "URL prefix", then "HTML file". Copy the file name it shows, paste it here, tap Save, then tap Verify in Search Console. No file upload needed.</p>
-  <label>Home page title for Google</label><input name="seoTitle" maxlength="70" placeholder="Rocero | Buy genuine electronics and machines in Nigeria" value="${esc(s.seoTitle||'')}">
+  <label>Home page title for Google</label><input name="seoTitle" maxlength="70" placeholder="Rocero | Shop genuine products online in Nigeria" value="${esc(s.seoTitle||'')}">
   <label>Home page description for Google</label><textarea name="seoDesc" rows="2" maxlength="158">${esc(s.seoDesc||'')}</textarea>
   <label>About us (Google reads this on your About page)</label><textarea name="aboutText" rows="7" placeholder="Who you are, what you sell, brands you stock, how long you have traded, where you are, delivery coverage, warranty, why customers trust you. Leave a blank line between paragraphs.">${esc(s.aboutText||'')}</textarea>
   <div class="row end"><button class="btn">Save Google settings</button></div></form>
@@ -1152,7 +1167,7 @@ function seoTab(){
   <div class="row"><button class="btn sm" data-a="seoprev" data-id="${p.id}">Preview</button><button class="btn ghost sm" data-a="copylink" data-id="${p.id}">Copy link</button><a class="btn ghost sm" target="_blank" href="https://wa.me/?text=${encodeURIComponent(p.name+' '+fmt(fprice(p))+': '+pLink(p))}">Share</a><button class="btn ghost sm" data-a="pedit" data-id="${p.id}">Edit</button></div></div></div>`}).join(''):'<div class="empty">No active products yet.</div>'}
   ${DB.products.length>act.length?`<p class="mut" style="margin-top:8px">${DB.products.length-act.length} hidden product(s) have no page.</p>`:''}</div>
   <div class="sec"><h3>Category pages (${used.length})</h3>${used.map(c=>`<div class="row sp" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${c.icon} ${esc(c.name)} <span class="mut">${act.filter(p=>p.cat===c.id).length} products</span></span><span class="row"><a class="btn ghost sm" target="_blank" href="${catLink(c)}">Open</a><button class="btn ghost sm" data-a="copytxt" data-t="${esc(catLink(c))}">Copy link</button></span></div>`).join('')||'<div class="empty">No categories with products yet.</div>'}</div>
-  <div class="sec"><h3>City pages (${CITIES.length})</h3><p class="mut" style="margin-bottom:8px">Help people searching "electronics in Lagos" and similar. Share these links in local groups.</p><div class="row" style="flex-wrap:wrap">${CITIES.map(c=>`<a class="chip" target="_blank" href="${cityLink(c)}">${c}</a>`).join('')}</div></div>
+  <div class="sec"><h3>City pages (${CITIES.length})</h3><p class="mut" style="margin-bottom:8px">Help people searching "buy online in Lagos" and similar. Share these links in local groups.</p><div class="row" style="flex-wrap:wrap">${CITIES.map(c=>`<a class="chip" target="_blank" href="${cityLink(c)}">${c}</a>`).join('')}</div></div>
   <div class="sec"><h3>Policy pages</h3><div class="row" style="flex-wrap:wrap">${['privacy','terms','returns','delivery','about'].map(x=>`<a class="chip" target="_blank" href="/info/${x}">${x[0].toUpperCase()+x.slice(1)}</a>`).join('')}</div><p class="mut" style="margin-top:8px">They use your store name, phone and email from Settings.</p></div>`;
 }
 function seoPreview(id){
@@ -1194,8 +1209,9 @@ function settings(){
   <div><label>Email</label><input name="email" value="${esc(s.email)}"></div><div><label>Address</label><input name="address" value="${esc(s.address)}"></div>
   <div><label>VAT %</label><input name="vat" type="number" step="any" value="${s.vat}"></div><div><label>Low stock threshold</label><input name="lowStock" type="number" value="${s.lowStock}"></div>
   ${CLOUD?'':`<div><label>Admin email</label><input name="adminEmail" value="${esc(s.adminEmail)}"></div><div><label>Admin password</label><input name="adminPass" value="${esc(s.adminPass)}"></div>`}</div>
-  <label>Delivery price</label><select name="delMode"><option value="auto" ${DB.settings.delMode!=='manual'?'selected':''}>Automatic (zone and product fees)</option><option value="manual" ${DB.settings.delMode==='manual'?'selected':''}>I set the price for every delivery</option></select>
-  <div class="two"><div><label>Store pickup address</label><input name="pickupAddr" value="${esc(pickAddr())}"></div><div><label>Default delivery hours (outside Lagos)</label><input name="delHrs" type="number" min="1" value="${defHrs()}"></div><div><label>Late delivery cashback ₦</label><input name="lateCb" type="number" min="0" value="${lateAmt()}"></div></div>
+  <p class="mut" style="margin:6px 0">Delivery time is fixed: Lagos 24 hours, other states 72 hours. You set the delivery price on each order (Admin → Orders → open the order).</p>
+<div class="two"><div><label>Installments: minimum deposit %</label><input name="instMin" type="number" min="1" max="90" value="${minDep()}"></div><div><label>Installments: months after deposit</label><input name="instMonths" type="number" min="1" max="24" value="${monthsN()}"></div></div>
+  <div class="two"><div><label>Store pickup address</label><input name="pickupAddr" value="${esc(pickAddr())}"></div><div><label>Late delivery cashback ₦</label><input name="lateCb" type="number" min="0" value="${lateAmt()}"></div></div>
   <label>Bank transfer details</label><textarea name="bank">${esc(s.bank)}</textarea>
   <label class="chk"><input type="checkbox" name="card" ${s.card?'checked':''}>Accept card payments</label><label class="chk"><input type="checkbox" name="transfer" ${s.transfer?'checked':''}>Accept bank transfer</label>
   <label class="chk"><input type="checkbox" name="autoApprove" ${s.autoApprove?'checked':''}>Auto-approve customer reviews</label>
@@ -1257,6 +1273,10 @@ const ACT={
     window.open('https://wa.me/'+o.phone.replace(/\D/g,'').replace(/^0/,'234')+'?text='+encodeURIComponent(msg),'_blank')},
   paynow:id=>payOrder(id),
   adddetails:id=>detailsForm(id),
+  gimg:id=>{const [pid,i]=String(id).split('|'),p=DB.products.find(x=>x.id===pid),m=$('#pmain');if(p&&m&&p.images&&p.images[i])m.src=p.images[i]},
+  pimgdel:id=>{PIMGS.splice(Number(id),1);drawPrev()},
+  pimgcover:id=>{const x=PIMGS.splice(Number(id),1)[0];PIMGS.unshift(x);drawPrev()},
+  popcats:()=>{const want=[['Fashion','👗'],['Shoes','👟'],['Bags','👜'],['Home & Kitchen','🏠'],['Furniture','🛋️'],['Beauty & Personal Care','💄'],['Baby & Kids','🧸'],['Groceries','🛒'],['Sports & Fitness','🏀'],['Automotive','🚗'],['Books & Stationery','📚'],['Toys & Games','🎮'],['Garden & Outdoor','🌿'],['Jewelry & Watches','⌚'],['Building Materials','🧱'],['Pets','🐾'],['Art & Decor','🖼️'],['Tools & Hardware','🔧']];let n=0;want.forEach(([nm,ic])=>{if(!DB.categories.some(c=>c.name.toLowerCase()===nm.toLowerCase())){DB.categories.push({id:'c'+uid(),name:nm,icon:ic});n++}});save();refreshAdmin();toast(n?n+' categories added':'You already have them all')},
   account:()=>{if(DB.session.user){const u=DB.users.find(x=>x.id===DB.session.user);modal(`<h3>Hi, ${esc(u.name)}</h3><p class="mut">${esc(u.email)}</p><div class="row" style="margin-top:12px"><button class="btn" data-a="myorders">My orders</button><button class="btn ghost" data-a="track">Track delivery</button><button class="btn ghost" data-a="cashback">🎁 Cashback ${fmt(Math.max(0,cbAvail(u.id)))}</button><button class="btn ghost" data-a="balance">My balance</button><button class="btn ghost" data-a="logout">Logout</button></div>`)}else authModal('login')},
   reg:()=>authModal('register'),log:()=>authModal('login'),
   logout:()=>{if(CLOUD){au.signOut();closeModal();S.view='home';return}DB.session.user=null;save();closeModal();S.view='home';renderStore()},
@@ -1275,7 +1295,7 @@ const ACT={
   ofilter:id=>{A.ostatus=id;refreshAdmin()},
   oview:id=>orderModal(id),
   invoice,
-  copyaddr:id=>{const o=DB.orders.find(x=>x.id===id);if(!o)return;const t=`${o.name}, ${o.phone}${o.phone2?' / '+o.phone2:''}\n${o.address}${o.landmark?', near '+o.landmark:''}\n${o.city}, ${o.state}`;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Address copied')).catch(()=>toast('Could not copy'))},
+  copyaddr:id=>{const o=DB.orders.find(x=>x.id===id);if(!o)return;const t=`${o.name}, ${o.phone}${o.phone2?' / '+o.phone2:''}\n${o.address}${o.landmark?', near '+o.landmark:''}\n${o.city}, ${o.state}${o.altAddress?'\nAlternative address: '+o.altAddress:''}${o.notes?'\nNotes: '+o.notes:''}`;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Address copied')).catch(()=>toast('Could not copy'))},
   ublock:id=>{const u=DB.users.find(x=>x.id===id);u.blocked=!u.blocked;save();refreshAdmin()},
   stk:(id,el)=>{const p=DB.products.find(x=>x.id===id);p.stock=Math.max(0,p.stock+Number(el.dataset.n));save();refreshAdmin()},
   rtoggle:id=>{const r=DB.reviews.find(x=>x.id===id);r.approved=!r.approved;save();refreshAdmin()},
@@ -1311,11 +1331,18 @@ document.addEventListener('change',e=>{
   if(i==='chaddr'){const fm=t.form,v=t.value,u=DB.users.find(x=>x.id===DB.session.user)||{},n=$('#adrnew');if(n)n.style.display=v==='new'?'':'none';['raddr','rlandmark','rcity'].forEach(k=>{if(fm[k])fm[k].required=v==='new'});
     if(v!=='new'&&v!=='later'){const a=(u.addrs||[])[Number(v)];if(a&&fm.state)fm.state.value=a.state}
     if(fm.state)fm.state.disabled=(v!=='new'&&v!=='later')}
-  if(['chstate','chpay','chcb','chmeth','chaddr'].includes(i))refreshSum();
+  if(i==='chpay'){const w=$('#depwrap');if(w)w.style.display=t.value==='installment'?'':'none'}
+  if(['chstate','chpay','chcb','chmeth','chaddr','chdep'].includes(i))refreshSum();
   if(i==='ostat'){const oo=DB.orders.find(o=>o.id===t.dataset.id);if(oo.plan&&balOf(oo)>0&&['Shipped','Delivered'].includes(t.value)&&!confirm('Balance not fully paid ('+fmt(balOf(oo))+' left). Mark as '+t.value+' anyway?')){orderModal(oo.id);return}setOrderStatus(oo,t.value);save();refreshAdmin();orderModal(t.dataset.id);toast('Status updated');Promise.resolve().then(()=>cbReverse(oo)).then(()=>afterDelivered(oo)).then(()=>refreshAdmin())}
   if(i==='opay'){const oo=DB.orders.find(o=>o.id===t.dataset.id);oo.payStatus=t.value;if(t.value==='Paid'&&!oo.paidAt)oo.paidAt=new Date().toISOString();(async()=>{try{await cbDebit(oo);await cbReverse(oo);await afterDelivered(oo)}catch(e){cbErrShow(e)}save();refreshAdmin();orderModal(oo.id);toast('Payment updated')})();return}
   if(i==='cbtog'){const p=DB.products.find(x=>x.id===t.dataset.id);if(p){p[t.dataset.k]=t.checked;save();toast('Saved')}return}
-  if(i==='pimg'&&t.files[0]){const fm=t.form;fm.dataset.busy='1';$('#pprev').innerHTML='<span class="mut">Preparing image...</span>';
+  if(i==='pimgs'&&t.files.length){const fm=t.form,list=[...t.files].slice(0,Math.max(0,6-PIMGS.length));if(!list.length){toast('Maximum 6 photos');return}fm.dataset.busy='1';$('#pprev').insertAdjacentHTML('beforeend','<span class="mut">Preparing '+list.length+' photo(s)...</span>');
+    Promise.all(list.map(x=>fastImg(x,640))).then(r=>{PIMGS.push(...r.filter(Boolean));while(PIMGS.join('').length>850000&&PIMGS.length>1){PIMGS.pop();toast('Too many large photos. Last one removed.')}delete fm.dataset.busy;drawPrev()}).catch(()=>{delete fm.dataset.busy;drawPrev();toast('Could not read a photo. Try another one.')});t.value=''}
+  if(i==='pvid'&&t.files[0]){const fm=t.form,f0=t.files[0],box=$('#vprog');if(f0.size>25*1024*1024){toast('Video too big (max 25 MB). Use a YouTube link instead.');t.value='';return}
+    fm.dataset.busy='1';box.textContent='Uploading 0%...';
+    getStorage().then(sg=>{const r=sg.ref('products/'+uid()+'-v'),task=r.put(f0,{contentType:f0.type||'video/mp4'});task.on('state_changed',x=>{box.textContent='Uploading '+Math.round(x.bytesTransferred/x.totalBytes*100)+'%...'},()=>{delete fm.dataset.busy;box.textContent='';toast('Video upload failed. Firebase Storage may not be available on your plan. Paste a YouTube link instead.')},async()=>{const url=await r.getDownloadURL();fm.videos.value=(fm.videos.value.trim()?fm.videos.value.trim()+'\n':'')+url;delete fm.dataset.busy;box.textContent='✅ Video uploaded and added above. Now tap Save product.'})}).catch(()=>{delete fm.dataset.busy;box.textContent='';toast('Video upload is not available. Paste a YouTube link instead.')});t.value=''}
+  if(i==='pcat'&&t.value==='__new'){const n=(prompt('New category name')||'').trim();if(!n){t.selectedIndex=0;return}const ic=(prompt('Icon (one emoji, optional)','📦')||'📦').trim(),c={id:'c'+uid(),name:n,icon:ic};DB.categories.push(c);save();t.add(new Option(n,c.id),t.options[t.options.length-1]);t.value=c.id}
+  if(false&&i==='pimg'&&t.files[0]){const fm=t.form;fm.dataset.busy='1';$('#pprev').innerHTML='<span class="mut">Preparing image...</span>';
     resizeImage(t.files[0],440,d=>{delete fm.dataset.busy;fm.image.value=d;$('#pprev').innerHTML=`<img src="${d}" style="height:70px;border-radius:8px"> <span class="tag ok">Image ready. Now tap Save product</span>`},()=>{delete fm.dataset.busy;$('#pprev').innerHTML='';toast('Could not read that photo. Try another one.')})}
   if(i==='restore'&&t.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.products)throw 0;DB=d;DB.session={user:null,admin:true};save();refreshAdmin();toast('Restored')}catch(x){toast('Invalid backup file')}};r.readAsText(t.files[0])}
 });
@@ -1336,12 +1363,12 @@ document.addEventListener('submit',e=>{
   if(k==='cbrate'){DB.settings.cbRate=Math.max(0,Math.min(20,Number(f.cbRate.value)||0));save();refreshAdmin();return toast('Cashback rate saved')}
   if(k==='trkmeta'){const v={courier:f.courier.value.trim(),trackNo:f.trackNo.value.trim(),eta:f.eta.value};return admTrk(f.dataset.id,o=>Object.assign(o,v)).then(()=>toast('Saved'))}
   if(k==='trkpost'){const st=f.stage.value,v={t:Date.now(),s:st,loc:f.loc.value.trim(),note:f.note.value.trim()};return admTrk(f.dataset.id,o=>{o.track=o.track||[];o.track.push(v);if(['Dispatched','In transit','Arrived at local hub','Out for delivery','Delivery attempted'].includes(st)&&STATUSES.indexOf(o.status)<2)o.status='Shipped';if(st==='Delivered'){o.status='Delivered';o.deliveredAt=o.deliveredAt||new Date().toISOString()}}).then(()=>toast('Posted. Tap 📲 Notify to alert the customer'))}
-  if(k==='quote'){const o=DB.orders.find(x=>x.id===f.dataset.id),fee=Number(f.fee.value)||0;o.shipping=fee;o.shipAdj=true;o.total=o.subtotal-o.discount+o.vat+fee-(Number(o.cbUsed)||0);o.quotePending=false;if(o.plan){o.total=Math.round(o.total);const pl=buildPlan((o.items||[]).map(it=>({p:DB.products.find(x=>x.id===it.id),sub:it.price*it.qty})),o.total);if(pl){o.plan=pl;o.paidTotal=0}}save();refreshAdmin();orderModal(o.id);toast('Delivery price saved. Customer can now pay.')}
+  if(k==='quote'){const o=DB.orders.find(x=>x.id===f.dataset.id),fee=Number(f.fee.value)||0;o.shipping=fee;o.shipAdj=true;o.total=o.subtotal-o.discount+o.vat+fee-(Number(o.cbUsed)||0);o.quotePending=false;if(o.plan){o.total=Math.round(o.total);const pl=buildPlan((o.items||[]).map(it=>({p:DB.products.find(x=>x.id===it.id),sub:it.price*it.qty})),o.total,Date.now(),o.plan.pct);if(pl){o.plan=pl;o.paidTotal=0}}save();refreshAdmin();orderModal(o.id);toast('Delivery price saved. Customer can now pay.')}
   if(k==='admlogin'&&CLOUD)return au.signInWithEmailAndPassword(f.email.value,f.pass.value).then(async c=>{await onAuth(c.user);if(!DB.session.admin){await au.signOut();toast('This account is not an admin')}else route()}).catch(x=>toast(authMsg(x)));
   if(k==='admlogin'){if(f.email.value===DB.settings.adminEmail&&f.pass.value===DB.settings.adminPass){DB.session.admin=true;save();renderAdmin()}else toast('Wrong admin credentials')}
   if(k==='product'){
     if(f.dataset.busy)return toast('Image still loading. Wait a moment, then tap Save.');
-    const id=f.dataset.id,d={name:f.name.value,cat:f.cat.value,brand:f.brand.value,price:Number(f.price.value),discount:Number(f.discount.value)||0,stock:Number(f.stock.value)||0,sku:f.sku.value,warranty:f.warranty.value,desc:f.desc.value,specs:f.specs.value,instOn:f.instOn.checked,delHrs:Number(f.delHrs.value)||0,delFees:(()=>{const m={};DB.shipping.forEach(z=>{const e=f['df_'+z.id];if(e&&e.value!=='')m[z.id]=Math.max(0,Number(e.value)||0)});return m})(),cbEarn:f.cbEarn.checked,cbPay:f.cbPay.checked,instDeposit:Math.min(90,Math.max(1,Number(f.instDeposit.value)||50)),instMonths:Math.min(24,Math.max(1,Math.round(Number(f.instMonths.value)||3))),tags:f.tags.value,seoTitle:f.seoTitle.value.trim(),seoDesc:f.seoDesc.value.trim(),image:f.image.value,active:f.active.checked,flash:f.flash.checked,featured:f.featured.checked};
+    const id=f.dataset.id,d={name:f.name.value,cat:f.cat.value,brand:f.brand.value,price:Number(f.price.value),discount:Number(f.discount.value)||0,stock:Number(f.stock.value)||0,sku:f.sku.value,warranty:f.warranty.value,desc:f.desc.value,specs:f.specs.value,instOn:f.instOn.checked,cbEarn:f.cbEarn.checked,cbPay:f.cbPay.checked,tags:f.tags.value,seoTitle:f.seoTitle.value.trim(),seoDesc:f.seoDesc.value.trim(),image:PIMGS[0]||'',images:PIMGS.slice(),videos:(f.videos.value||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,3),active:f.active.checked,flash:f.flash.checked,featured:f.featured.checked};
     if(id)Object.assign(DB.products.find(p=>p.id===id),d);else DB.products.push({id:'p'+uid(),created:new Date().toISOString(),sold:0,...d});
     save();closeModal();refreshAdmin();toast('Product saved');
   }
@@ -1356,7 +1383,7 @@ document.addEventListener('submit',e=>{
     if(gf){const m=gf.match(/google[a-z0-9]+\.html/i);if(!m)return toast('Paste the file name Google gave you, like google1234abcd.html');gf=m[0].toLowerCase()}
     s.gaId=ga;s.gscFile=gf;s.seoTitle=f.seoTitle.value.trim();s.seoDesc=f.seoDesc.value.trim();s.aboutText=f.aboutText.value.trim();save();applySeo();refreshAdmin();toast('Google settings saved')}
   if(k==='settings'){const s=DB.settings;['name','tagline','phone','whatsapp','email','address','bank',...(CLOUD?[]:['adminEmail','adminPass'])].forEach(x=>s[x]=f[x].value);
-    s.delMode=f.delMode.value;s.pickupAddr=f.pickupAddr.value.trim()||pickAddr();s.delHrs=Number(f.delHrs.value)||72;s.lateCb=f.lateCb.value===''?500:Math.max(0,Number(f.lateCb.value)||0);s.vat=Number(f.vat.value)||0;s.lowStock=Number(f.lowStock.value)||0;['card','transfer','autoApprove'].forEach(x=>s[x]=f[x].checked);save();toast('Settings saved')}
+    s.instMin=Math.min(90,Math.max(1,Number(f.instMin.value)||10));s.instMonths=Math.min(24,Math.max(1,Math.round(Number(f.instMonths.value)||3)));s.pickupAddr=f.pickupAddr.value.trim()||pickAddr();s.lateCb=f.lateCb.value===''?500:Math.max(0,Number(f.lateCb.value)||0);s.vat=Number(f.vat.value)||0;s.lowStock=Number(f.lowStock.value)||0;['card','transfer','autoApprove'].forEach(x=>s[x]=f[x].checked);save();toast('Settings saved')}
 });
 window.addEventListener('hashchange',route);
 setInterval(()=>{tick()},1000);
