@@ -846,7 +846,7 @@ async function renderRider(id,k){
   $('#app').innerHTML=`<div class="wrap" style="max-width:480px;padding:16px"><div class="logo" style="margin-bottom:12px"><i>⚡</i>ROCER<b>O</b> Rider</div><div id="rd" class="sec">Loading…</div></div>`;
   let j;try{j=await (await fetch('/api/rider?o='+encodeURIComponent(id)+'&k='+encodeURIComponent(k),{cache:'no-store'})).json()}catch(e){j={ok:false,status:'error'}}
   const rd=$('#rd');if(!rd)return;
-  if(!j.ok){rd.innerHTML='<h3>Link not valid</h3><p class="mut">'+({bad_link:'This link is wrong or was replaced. Ask the shop for a new one.',not_deliverable:'This order is not a delivery order or was cancelled.',not_configured:'The shop has not finished setting up.'}[j.status]||'Could not load. Check your connection.')+'</p>';return}
+  if(!j.ok){rd.innerHTML='<h3>Link not valid</h3><p class="mut">'+({bad_link:'This link is wrong or was replaced. Ask the shop for a new one.',not_deliverable:'This order is not a delivery order or was cancelled.',not_configured:'The shop has not finished setting up.'}[j.status]||'Could not load. Check your connection.'+(j.status==='error'?' (Shop server error: '+(j.detail||'')+')':''))+'</p>';return}
   rd.innerHTML=`<h3>Order ${esc(id)}</h3><div><b>${esc(j.name)}</b> · <a href="tel:${esc(j.phone)}">${esc(j.phone)}</a></div><div style="margin:6px 0">${esc(j.address||'(address not added yet)')}${j.landmark?', near '+esc(j.landmark):''}</div><div class="mut">${esc(j.city||'')} ${esc(j.state||'')} · ${j.items} item(s)${j.notes?' · Note: '+esc(j.notes):''}</div>
   <a class="btn ghost sm" style="margin:8px 0" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([j.address,j.city,j.state,'Nigeria'].filter(Boolean).join(', '))}">Navigate in Google Maps</a>
   ${j.status!=='Shipped'?'<p style="color:var(--bad)"><b>The shop has not marked this order as Shipped yet. Sharing will not start until they do.</b></p>':''}
@@ -966,7 +966,7 @@ function authModal(mode){
 
 /* ============ ADMIN ============ */
 const A={tab:'dashboard',q:'',ostatus:''};
-const TABS=[['dashboard','📊 Dashboard'],['products','📦 Products'],['seo','🔎 SEO & Pages'],['categories','🗂 Categories'],['orders','🧾 Orders'],['pickups','🏬 Pickups'],['installments','💳 Installments'],['cashback','🎁 Cashback'],['customers','👥 Customers'],['inventory','🏭 Inventory'],['coupons','🏷 Coupons'],['banners','🖼 Banners'],['reviews','⭐ Reviews'],['payments','💳 Payments'],['analytics','📈 Analytics'],['insights','📍 Insights'],['settings','⚙️ Settings']];
+const TABS=[['dashboard','📊 Dashboard'],['products','📦 Products'],['seo','🔎 SEO & Pages'],['categories','🗂 Categories'],['orders','🧾 Orders'],['payments','💰 Payments & Refunds'],['pickups','🏬 Pickups'],['installments','💳 Installments'],['cashback','🎁 Cashback'],['customers','👥 Customers'],['inventory','🏭 Inventory'],['coupons','🏷 Coupons'],['banners','🖼 Banners'],['reviews','⭐ Reviews'],['analytics','📈 Analytics'],['insights','📍 Insights'],['settings','⚙️ Settings']];
 const CRUD={
   categories:{title:'category',def:{name:'',icon:'📦'},fields:[{k:'name',l:'Name'},{k:'icon',l:'Icon (emoji)'}]},
   coupons:{title:'coupon',def:{code:'',type:'percent',value:10,min:0,expires:'',active:true,used:0},fields:[{k:'code',l:'Code'},{k:'type',l:'Type',t:'select',o:['percent','fixed']},{k:'value',l:'Value (% or ₦)',t:'number'},{k:'min',l:'Minimum spend ₦',t:'number'},{k:'expires',l:'Expires',t:'date'},{k:'active',l:'Active',t:'checkbox'}]},
@@ -1114,9 +1114,38 @@ function shipping(){
   return `<div class="row end" style="margin:0 0 10px"><button class="btn" data-a="crudopen" data-col="shipping" data-id="">+ Add zone</button></div>`+
   tbl(['Zone','States','Fee','Delivery time',''],DB.shipping.map(z=>`<tr><td><b>${esc(z.name)}</b></td><td>${esc(z.states==='*'?'All other states':z.states)}</td><td>${fmt(z.fee)}</td><td>${esc(z.eta)}</td><td><button class="btn ghost sm" data-a="crudopen" data-col="shipping" data-id="${z.id}">Edit</button> <button class="btn red sm" data-a="del" data-col="shipping" data-id="${z.id}">Del</button></td></tr>`));
 }
+let PX={bal:null,tx:null,err:'',busy:false};
+async function pxCall(body){
+  const u=au&&au.currentUser;if(!u)throw new Error('Sign in again');
+  const r=await fetch('/api/payments',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await u.getIdToken()},body:JSON.stringify(body)});
+  return r.json();
+}
+async function pxLoad(){
+  if(PX.busy)return;PX.busy=true;PX.err='';
+  try{
+    const [b,t]=await Promise.all([pxCall({action:'balance'}),pxCall({action:'transactions'})]);
+    PX.bal=b.ok?b.balance:[];PX.tx=t.ok?t.items:[];
+    if(!b.ok)PX.err=b.error;else if(!t.ok)PX.err=t.error;
+  }catch(e){PX.bal=[];PX.tx=[];PX.err='Could not reach the payment server. Check Vercel is deployed.'}
+  PX.busy=false;if(A.tab==='payments')refreshAdmin();
+}
 function payments(){
+  if(PX.tx===null&&!PX.busy&&CLOUD)setTimeout(pxLoad,0);
   const paid=DB.orders.reduce((a,o)=>a+paidAmt(o),0),pend=DB.orders.filter(o=>o.status!=='Cancelled').reduce((a,o)=>a+balOf(o),0);
-  return `<div class="kpis"><div class="kpi"><div class="mut">Received</div><div class="v">${fmt(paid)}</div></div><div class="kpi"><div class="mut">Awaiting payment</div><div class="v">${fmt(pend)}</div></div></div>`+
+  const ref=DB.orders.filter(o=>o.payStatus==='Refunded').reduce((a,o)=>a+(Number(o.refundAmt)||Number(o.total)||0),0);
+  const day=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-n);return d.getTime()};
+  const inc=since=>DB.orders.reduce((a,o)=>a+(o.paidAt&&new Date(o.paidAt).getTime()>=since&&o.payStatus!=='Refunded'?paidAmt(o):0),0);
+  const bal=PX.bal&&PX.bal.length?PX.bal.map(x=>fmt(x.balance)).join(' · '):(PX.busy?'Loading…':'—');
+  const txs=PX.tx||[];
+  const tx=txs.map(x=>{const o=DB.orders.find(q=>q.id===(x.orderId||(String(x.ref).match(/^(ORD-[A-Z0-9]+)/)||[])[1]));
+    const ok=x.status==='success';const need=ok&&o&&o.payStatus==='Pending'&&!o.plan;
+    return `<tr><td>${esc(dstr(x.paid_at))}</td><td>${o?o.id:esc(x.ref)}</td><td>${esc(x.email||'')}</td><td>${fmt(x.amount)}</td><td>${ok?'<span class="tag ok">success</span>':'<span class="tag warn">'+esc(x.status)+'</span>'}</td><td>${need?`<button class="btn sm green" data-a="pxconfirm" data-id="${esc(x.ref)}">Confirm</button> `:''}${ok&&o&&o.payStatus!=='Refunded'?`<button class="btn sm ghost" data-a="pxrefund" data-id="${esc(x.ref)}" data-amt="${x.amount}" data-order="${o.id}">Refund</button>`:''}</td></tr>`});
+  return `<div class="kpis"><div class="kpi"><div class="mut">Paystack balance</div><div class="v">${bal}</div></div><div class="kpi"><div class="mut">Today</div><div class="v">${fmt(inc(day(0)))}</div></div><div class="kpi"><div class="mut">Last 7 days</div><div class="v">${fmt(inc(day(6)))}</div></div><div class="kpi"><div class="mut">Last 30 days</div><div class="v">${fmt(inc(day(29)))}</div></div><div class="kpi"><div class="mut">Received (orders)</div><div class="v">${fmt(paid)}</div></div><div class="kpi"><div class="mut">Awaiting payment</div><div class="v">${fmt(pend)}</div></div><div class="kpi"><div class="mut">Refunded</div><div class="v">${fmt(ref)}</div></div></div>
+  ${PX.err?`<div class="sec"><span class="tag bad">${esc(PX.err)}</span></div>`:''}
+  <div class="row sp" style="margin:8px 0"><h3 style="margin:0">Paystack transactions</h3><button class="btn sm ghost" data-a="pxreload">${PX.busy?'Loading…':'↻ Refresh'}</button></div>
+  <div class="mut" style="margin-bottom:6px">Refunds go back to the customer's card or bank through Paystack. They may take a few days. "Confirm" marks an order Paid if the customer paid but it still shows Pending.</div>
+  ${tbl(['Date','Order','Customer','Amount','Status',''],tx)}
+  <h3 style="margin:14px 0 6px">Orders payment status</h3>`+
   tbl(['Order','Customer','Method','Amount','Status','Mark'],[...DB.orders].reverse().map(o=>`<tr><td>${o.id}</td><td>${esc(o.name)}</td><td>${esc(o.payment)}</td><td>${fmt(o.total)}</td><td>${stateTag(o.payStatus)}</td><td>${o.payStatus!=='Paid'&&o.status!=='Cancelled'&&!o.plan?`<button class="btn sm" data-a="markpaid" data-id="${o.id}">Mark paid</button>`:''}</td></tr>`));
 }
 function analytics(){
@@ -1299,6 +1328,18 @@ const ACT={
   ublock:id=>{const u=DB.users.find(x=>x.id===id);u.blocked=!u.blocked;save();refreshAdmin()},
   stk:(id,el)=>{const p=DB.products.find(x=>x.id===id);p.stock=Math.max(0,p.stock+Number(el.dataset.n));save();refreshAdmin()},
   rtoggle:id=>{const r=DB.reviews.find(x=>x.id===id);r.approved=!r.approved;save();refreshAdmin()},
+  pxreload:()=>{PX.tx=null;PX.bal=null;pxLoad()},
+  pxconfirm:async ref=>{try{const j=await (await fetch('/api/paystack?reference='+encodeURIComponent(ref),{cache:'no-store'})).json();toast(j.status==='paid'||j.status==='already'?'Confirmed. Order marked Paid':j.status==='review'?'Needs your check: '+((j.why||[]).join('; ')||'see order note'):'Not confirmed: '+j.status+(j.detail?' ('+j.detail+')':''));await pullOrders();refreshAdmin()}catch(e){toast('Could not reach the server')}},
+  pxrefund:async(ref,a)=>{const o=DB.orders.find(x=>x.id===a.dataset.order);if(!o)return;const max=Number(a.dataset.amt)||0;
+    const v=prompt('Refund how much? (max '+max+'). Leave as is for a full refund.',max);if(v===null)return;const amt=Number(v);
+    if(!(amt>0&&amt<=max))return toast('Enter an amount up to '+fmt(max));
+    if(!confirm('Refund '+fmt(amt)+' to the customer for '+o.id+'? This cannot be undone.'))return;
+    try{const j=await pxCall({action:'refund',ref,amount:amt,note:'Order '+o.id});
+      if(!j.ok)return toast('Refund failed: '+j.error);
+      o.payStatus='Refunded';o.refundAmt=(Number(o.refundAmt)||0)+amt;o.refundedAt=new Date().toISOString();o.payNote='Refunded '+fmt(amt)+' via Paystack ('+(j.status||'pending')+')';
+      if(!['Delivered','Cancelled'].includes(o.status))o.status='Cancelled';
+      try{await cbReverse(o)}catch(e){}
+      save();toast('Refund sent to Paystack');PX.tx=null;refreshAdmin()}catch(e){toast('Refund failed. Try again.')}},
   markpaid:async id=>{const o=DB.orders.find(x=>x.id===id);o.payStatus='Paid';if(!o.paidAt)o.paidAt=new Date().toISOString();try{await cbDebit(o);await afterDelivered(o)}catch(e){cbErrShow(e)}save();refreshAdmin()},
   csvprod:()=>csv('products.csv',[['SKU','Name','Category','Brand','Price','Discount%','Stock','Sold'],...DB.products.map(p=>[p.sku,p.name,cat(p.cat).name,p.brand,p.price,p.discount,p.stock,p.sold])]),
   csvord:()=>csv('orders.csv',[['Order','Date','Customer','Phone','State','Total','Payment','PayStatus','Status'],...DB.orders.map(o=>[o.id,o.date,o.name,o.phone,o.state,o.total,o.payment,o.payStatus,o.status])]),
