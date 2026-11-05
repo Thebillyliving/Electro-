@@ -55,5 +55,5 @@ module.exports = async (req, res) => {
     if (r.err) return send(200, { ok: false, status: r.err });
     const o = r.ord;
     return send(200, { ok: true, status: o.status, name: o.name, phone: o.phone, address: o.address, landmark: o.landmark, city: o.city, state: o.state, notes: o.notes, items: (o.items || []).reduce((a, i) => a + (Number(i.qty) || 0), 0) });
-  } catch (e) { return send(200, { ok: false, status: 'error' }); }
+  } catch (e) { return send(200, { ok: false, status: 'error', detail: String(e && e.message || e).slice(0, 80) }); }
 };

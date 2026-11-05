@@ -142,20 +142,20 @@ async function confirm(ref) {
     if (plan) {
       const sum = plan.schedule.reduce((a, x) => a + Number(x.amount), 0);
       if (Math.abs(sum - Math.round(Number(o.total) || 0)) > 1) why.push('installments do not add up to the total');
-      if (!found.length || !found.every(x => x.p.instOn && Number(x.p.instMonths) >= 1)) why.push('product not enabled for installments');
+      if (!found.length || !found.every(x => x.p.instOn)) why.push('product not enabled for installments');
       else {
-        const ss = found.reduce((a, x) => a + x.sub, 0) || 1, pct = found.reduce((a, x) => a + x.sub * Number(x.p.instDeposit), 0) / ss;
-        const months = Math.max(...found.map(x => Number(x.p.instMonths))), minDep = Math.round(Math.round(Number(o.total) || 0) * pct / 100);
-        if (Number(plan.schedule[0].amount) < minDep - 1) why.push('deposit below the product setting (' + money(minDep) + ')');
-        if (plan.schedule.length - 1 > months) why.push('more installments than the product allows');
+        const minPct = Math.min(90, Math.max(1, Number(settings && settings.instMin) || 10)), months = Math.min(24, Math.max(1, Math.round(Number(settings && settings.instMonths) || 3)));
+        const need = Math.round(Math.round(Number(o.total) || 0) * minPct / 100);
+        if (Number(plan.schedule[0].amount) < need - 1) why.push('deposit below the minimum (' + money(need) + ')');
+        if (plan.schedule.length - 1 > months) why.push('more installments than allowed');
       }
       if (plan.schedule.some(x => !(Number(x.amount) > 0))) why.push('invalid installment amount');
     }
-  } catch (e) { why.push('could not check prices'); }
+  } catch (e) { why.push('could not check prices (' + String(e.message || e).slice(0, 60) + ')'); }
 
   if (why.length) {
     await patch('orders/' + orderId, { payNote: ('Paystack ' + money(paid) + ' ref ' + ref + '. CHECK BEFORE SHIPPING: ' + why.join('; ')).slice(0, 400) }, t);
-    return { ok: true, status: 'review' };
+    return { ok: true, status: 'review', why };
   }
   const now = new Date().toISOString();
   if (!plan) {
@@ -187,10 +187,16 @@ module.exports = async (req, res) => {
       if (b.event && b.event !== 'charge.success') return send(200, { ok: true, status: 'ignored' });
       ref = b.data && b.data.reference;
     } else ref = (req.query || {}).reference;
+    if (!post && (req.query || {}).diag) {
+      const d = { PAYSTACK_SECRET: !!process.env.PAYSTACK_SECRET, ROBOT_EMAIL: !!process.env.ROBOT_EMAIL, ROBOT_PASSWORD: !!process.env.ROBOT_PASSWORD };
+      try { const t = await token(); d.robotLogin = true; try { const a = await getDoc('admins/' + JSON.parse(Buffer.from(t.split('.')[1], 'base64').toString()).user_id, t); d.robotIsOwner = !!(a && a.role === 'owner'); } catch (e) { d.robotIsOwner = false; } } catch (e) { d.robotLogin = false; }
+      if (d.PAYSTACK_SECRET) { try { const r = await fetch('https://api.paystack.co/balance', { headers: { Authorization: 'Bearer ' + process.env.PAYSTACK_SECRET } }); d.paystackKey = r.ok ? 'ok' : 'rejected (' + r.status + ')'; } catch (e) { d.paystackKey = 'unreachable'; } }
+      return send(200, d);
+    }
     if (!process.env.PAYSTACK_SECRET || !process.env.ROBOT_EMAIL || !process.env.ROBOT_PASSWORD) return send(post ? 500 : 200, { ok: false, status: 'not_configured' });
     return send(200, await confirm(String(ref || '')));
   } catch (e) {
-    return send(post ? 500 : 200, { ok: false, status: 'error' });
+    return send(post ? 500 : 200, { ok: false, status: 'error', detail: String(e && e.message || e).slice(0, 80) });
   }
 };
 module.exports.confirm = confirm;
